@@ -10,6 +10,7 @@
 - 支持自定义Chrome路径和数据根目录
 - 快速启动不同的Chrome实例
 - 桌面快捷方式自动创建
+- 模块化代码结构，易于维护和扩展
 
 ## 系统要求
 
@@ -28,7 +29,7 @@ pip install -r requirements.txt
 
 1. 运行程序：
 ```bash
-python chrome_shortcut_manager.py
+python main.py
 ```
 
 2. 首次运行时，在"设置"中配置：
@@ -41,6 +42,41 @@ python chrome_shortcut_manager.py
    - 确认创建
 
 4. 通过桌面快捷方式或程序界面启动Chrome实例
+
+## 项目结构
+
+项目采用模块化结构，便于维护和扩展：
+
+```
+.
+├── main.py                     # 主程序入口
+├── chrome_manager/             # 主包
+│   ├── __init__.py             # 包初始化文件
+│   ├── constants.py            # 全局常量
+│   ├── utils.py                # 工具函数
+│   ├── config.py               # 配置管理
+│   ├── shortcuts.py            # 快捷方式管理
+│   ├── main_window.py          # 主窗口类
+│   └── ui/                     # UI子包
+│       ├── __init__.py         # UI子包初始化
+│       ├── components.py       # 基础UI组件
+│       ├── cards.py            # 卡片组件
+│       ├── dialogs.py          # 对话框组件
+│       └── message.py          # 消息对话框工具
+```
+
+## 模块说明
+
+- **main.py**: 程序入口点，负责应用程序的初始化和启动
+- **constants.py**: 全局常量定义，如颜色、字体等
+- **utils.py**: 工具函数，如字体加载等实用功能
+- **config.py**: 配置管理模块，负责配置的加载和保存
+- **shortcuts.py**: 快捷方式管理模块，处理Chrome快捷方式的创建和管理
+- **main_window.py**: 主窗口类，整合所有功能模块
+- **ui/components.py**: 基础UI组件，如按钮、输入框等
+- **ui/cards.py**: 卡片UI组件，如浏览器实例卡片
+- **ui/dialogs.py**: 对话框组件，如添加快捷方式对话框、设置对话框等
+- **ui/message.py**: 消息对话框工具类，统一处理各种消息提示
 
 ## 配置文件
 
