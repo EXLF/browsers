@@ -177,11 +177,29 @@ class ChromeShortcutManager(QMainWindow):
         page_title = QLabel("我的浏览器")
         page_title.setFont(QFont(FONT_FAMILY, 24, QFont.Weight.Bold))
         
+        # 添加新实例按钮
         add_btn = ModernButton("添加新实例", accent=True)
         add_btn.clicked.connect(self.add_shortcut)
         
+        # 批量操作按钮
+        self.batch_btn = ModernButton("批量删除")
+        self.batch_btn.clicked.connect(self.toggle_batch_mode)
+        
+        # 批量删除确认按钮（初始隐藏）
+        self.confirm_delete_btn = ModernButton("删除选中", accent=True)
+        self.confirm_delete_btn.setVisible(False)
+        self.confirm_delete_btn.clicked.connect(self.delete_selected_shortcuts)
+        
+        # 取消批量操作按钮（初始隐藏）
+        self.cancel_batch_btn = ModernButton("取消")
+        self.cancel_batch_btn.setVisible(False)
+        self.cancel_batch_btn.clicked.connect(self.toggle_batch_mode)
+        
         top_bar.addWidget(page_title)
         top_bar.addStretch()
+        top_bar.addWidget(self.batch_btn)
+        top_bar.addWidget(self.confirm_delete_btn)
+        top_bar.addWidget(self.cancel_batch_btn)
         top_bar.addWidget(add_btn)
         
         home_layout.addLayout(top_bar)
@@ -219,6 +237,10 @@ class ChromeShortcutManager(QMainWindow):
         
         scroll_area.setWidget(self.grid_widget)
         home_layout.addWidget(scroll_area)
+        
+        # 批量操作状态
+        self.is_batch_mode = False
+        self.card_widgets = []  # 保存所有卡片组件
         
         return home_page
         
@@ -351,9 +373,12 @@ class ChromeShortcutManager(QMainWindow):
         for i in reversed(range(self.grid_layout.count())): 
             self.grid_layout.itemAt(i).widget().setParent(None)
         
+        # 清空卡片列表
+        self.card_widgets = []
+        
         # 设置网格布局属性
         self.grid_layout.setSpacing(16)  # 设置基础间距
-        self.grid_layout.setContentsMargins(40, 20, 40, 20)  # 设置外边距，左右对称
+        self.grid_layout.setContentsMargins(30, 20, 30, 20)  # 调整外边距
         self.grid_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)  # 顶部水平居中对齐
         
         # 添加浏览器卡片
@@ -363,16 +388,22 @@ class ChromeShortcutManager(QMainWindow):
             empty_label.setStyleSheet(f"color: {TEXT_HINT_COLOR};")
             empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.grid_layout.addWidget(empty_label, 0, 0)
+            
+            # 更新批量删除按钮状态
+            self.batch_btn.setEnabled(False)
             return
+        else:
+            # 有快捷方式时启用批量删除按钮
+            self.batch_btn.setEnabled(True)
         
         # 卡片参数
         card_width = 180  # 卡片宽度
-        card_spacing = 40  # 增加卡片间距到40像素
+        card_spacing = 30  # 调整卡片间距
         
         # 根据窗口状态确定布局
         if self.isMaximized():
             # 最大化状态：动态计算列数，但确保间距合理
-            available_width = self.grid_widget.width() - 80  # 减去左右边距
+            available_width = self.grid_widget.width() - 60  # 减去左右边距
             max_cols = min(6, (available_width + card_spacing) // (card_width + card_spacing))
         else:
             # 默认大小状态：固定4列
@@ -382,12 +413,23 @@ class ChromeShortcutManager(QMainWindow):
         for i, shortcut in enumerate(self.shortcuts):
             row = i // max_cols
             col = i % max_cols
-            card = BrowserCard(shortcut["name"], shortcut["data_dir"], self.chrome_path)
+            card = BrowserCard(
+                shortcut["name"], 
+                shortcut["data_dir"], 
+                self.chrome_path,
+                on_delete=self.delete_shortcut
+            )
+            
+            # 设置选择模式状态
+            if self.is_batch_mode:
+                card.set_select_mode(True)
+                
             self.grid_layout.addWidget(card, row, col)
+            self.card_widgets.append(card)
         
         # 设置水平和垂直间距
-        self.grid_layout.setHorizontalSpacing(card_spacing)  # 增加水平间距
-        self.grid_layout.setVerticalSpacing(card_spacing)  # 增加垂直间距
+        self.grid_layout.setHorizontalSpacing(card_spacing)  # 水平间距
+        self.grid_layout.setVerticalSpacing(card_spacing)  # 垂直间距
 
     def changeEvent(self, event):
         """窗口状态改变事件（最大化/还原）"""
@@ -457,3 +499,63 @@ class ChromeShortcutManager(QMainWindow):
         }
         
         self.config_manager.save_config(config) 
+
+    def delete_shortcut(self, name, data_dir):
+        """删除单个快捷方式"""
+        # 从快捷方式列表中删除
+        self.shortcuts = [s for s in self.shortcuts if s["name"] != name]
+        
+        # 删除实际文件
+        success = self.shortcut_manager.delete_shortcut(name, data_dir)
+        
+        if success:
+            self.update_browser_grid()
+            self.auto_save_config()
+            self.message_dialogs.show_success_message(f"Chrome实例 '{name}' 已删除")
+    
+    def toggle_batch_mode(self):
+        """切换批量操作模式"""
+        self.is_batch_mode = not self.is_batch_mode
+        
+        # 更新按钮状态
+        self.batch_btn.setVisible(not self.is_batch_mode)
+        self.confirm_delete_btn.setVisible(self.is_batch_mode)
+        self.cancel_batch_btn.setVisible(self.is_batch_mode)
+        
+        # 更新所有卡片的选择模式
+        for card in self.card_widgets:
+            card.set_select_mode(self.is_batch_mode)
+    
+    def delete_selected_shortcuts(self):
+        """删除选中的快捷方式"""
+        # 获取所有选中的卡片
+        selected_cards = [card for card in self.card_widgets if card.is_selected]
+        
+        if not selected_cards:
+            self.message_dialogs.show_error_message("请先选择要删除的Chrome实例！")
+            return
+        
+        # 确认删除
+        count = len(selected_cards)
+        if not self.message_dialogs.show_confirm_dialog(
+            f"确定要删除选中的 {count} 个Chrome实例吗？\n删除后将无法恢复，请谨慎操作！",
+            "确认批量删除"
+        ):
+            return
+        
+        # 执行删除
+        deleted_count = 0
+        for card in selected_cards:
+            success = self.shortcut_manager.delete_shortcut(card.name, card.data_dir)
+            if success:
+                # 从快捷方式列表中删除
+                self.shortcuts = [s for s in self.shortcuts if s["name"] != card.name]
+                deleted_count += 1
+        
+        if deleted_count > 0:
+            self.update_browser_grid()
+            self.auto_save_config()
+            self.message_dialogs.show_success_message(f"已成功删除 {deleted_count} 个Chrome实例")
+        
+        # 退出批量模式
+        self.toggle_batch_mode() 

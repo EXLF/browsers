@@ -67,6 +67,40 @@ class ShortcutManager:
             traceback.print_exc()
             return False
     
+    def delete_shortcut(self, name, data_dir):
+        """
+        删除Chrome快捷方式和数据目录
+        
+        Args:
+            name: 快捷方式名称
+            data_dir: 数据目录路径
+            
+        Returns:
+            bool: 是否删除成功
+        """
+        try:
+            # 删除桌面快捷方式
+            shortcut_path = os.path.join(self.desktop_path, f"{name}.lnk")
+            if os.path.exists(shortcut_path):
+                os.remove(shortcut_path)
+                print(f"快捷方式已删除: {shortcut_path}")
+            
+            # 删除数据目录（可选）
+            # 注意：这可能会删除用户的浏览数据，所以这里只打印提示而不实际删除
+            print(f"数据目录可能包含用户数据，不会自动删除: {data_dir}")
+            # 如果确实需要删除数据目录，可以取消下面的注释：
+            # import shutil
+            # if os.path.exists(data_dir):
+            #     shutil.rmtree(data_dir)
+            
+            return True
+        except Exception as e:
+            self.show_error_message(f"删除快捷方式失败：{str(e)}")
+            print(f"删除快捷方式错误: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return False
+    
     def launch_browser(self, chrome_path, data_dir):
         """
         启动浏览器实例
