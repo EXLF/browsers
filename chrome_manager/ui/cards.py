@@ -3,7 +3,7 @@
 """
 
 import os
-from PyQt6.QtWidgets import QFrame, QVBoxLayout, QLabel, QMessageBox
+from PyQt6.QtWidgets import QFrame, QVBoxLayout, QLabel, QMessageBox, QHBoxLayout
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon
 
@@ -24,73 +24,57 @@ class BrowserCard(QFrame):
         self.setup_ui()
         
     def setup_ui(self):
-        self.setFixedSize(200, 200)
-        self.setStyleSheet(f"""
-            QFrame {{
-                background-color: {BACKGROUND_COLOR};
-                border: 1px solid {BORDER_COLOR};
+        self.setFixedSize(180, 180)  # 减小卡片尺寸
+        self.setStyleSheet("""
+            QFrame {
+                background-color: white;
+                border: 1px solid #E0E0E0;
                 border-radius: 10px;
-            }}
-            QFrame:hover {{
-                border: 1px solid {PRIMARY_COLOR};
-                background-color: {PRIMARY_COLOR}10;
-            }}
+            }
         """)
         
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setContentsMargins(15, 15, 15, 15)
         layout.setSpacing(8)
         
-        # Chrome图标
+        # Chrome图标 - 圆形蓝色背景
         icon_label = QLabel()
-        icon_label.setFixedSize(64, 64)
-        # 尝试从Chrome可执行文件中提取图标
-        try:
-            chrome_icon = QIcon(self.chrome_path)
-            if not chrome_icon.isNull():
-                pixmap = chrome_icon.pixmap(64, 64)
-                icon_label.setPixmap(pixmap)
-            else:
-                # 如果无法从Chrome获取图标，使用一个简单的文本替代
-                icon_label.setText("Chrome")
-                icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                icon_label.setStyleSheet(f"""
-                    background-color: {PRIMARY_COLOR};
-                    color: white;
-                    border-radius: 32px;
-                    font-size: 12px;
-                    font-weight: bold;
-                """)
-        except Exception:
-            # 如果出现任何错误，使用文本替代
-            icon_label.setText("Chrome")
-            icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            icon_label.setStyleSheet(f"""
-                background-color: {PRIMARY_COLOR};
-                color: white;
-                border-radius: 32px;
-                font-size: 12px;
-                font-weight: bold;
-            """)
+        icon_label.setFixedSize(60, 60)
+        icon_label.setText("Chrome")
+        icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        icon_label.setStyleSheet("""
+            background-color: #4285F4;
+            color: white;
+            border-radius: 30px;
+            font-size: 12px;
+            font-weight: bold;
+        """)
         
-        layout.addWidget(icon_label, alignment=Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(icon_label, 0, Qt.AlignmentFlag.AlignCenter)
         
-        # 名称标签
+        # 名称标签 - 简单文本
         name_label = QLabel(self.name)
-        name_label.setStyleSheet(f"color: {TEXT_PRIMARY_COLOR}; font-weight: bold; font-size: 12pt;")
+        name_label.setStyleSheet("""
+            color: black;
+            font-size: 12px;
+            font-weight: bold;
+        """)
         name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(name_label)
         
-        # 数据目录标签
-        dir_label = QLabel(self.data_dir)
-        dir_label.setStyleSheet(f"color: {TEXT_SECONDARY_COLOR}; font-size: 8pt;")
-        dir_label.setWordWrap(True)
+        # 数据目录标签 - 简单文本
+        dir_name = os.path.basename(self.data_dir)
+        dir_label = QLabel(dir_name)
+        dir_label.setStyleSheet("""
+            color: #666666;
+            font-size: 12px;
+        """)
         dir_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(dir_label)
         
         # 启动按钮
         launch_btn = ModernButton("启动", accent=True)
-        launch_btn.setFixedHeight(32)
+        launch_btn.setFixedHeight(36)
         launch_btn.clicked.connect(self.launch_browser)
         layout.addWidget(launch_btn)
         

@@ -7,8 +7,8 @@ from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QFormLayout,
     QGraphicsDropShadowEffect, QFileDialog
 )
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QColor
+from PyQt6.QtCore import Qt, QPoint
+from PyQt6.QtGui import QColor, QMouseEvent
 
 from ..constants import (
     PRIMARY_COLOR, BACKGROUND_COLOR, TEXT_PRIMARY_COLOR, 
@@ -19,43 +19,103 @@ from .components import ModernLineEdit, ModernButton
 class ModernDialog(QDialog):
     """现代风格的对话框基类"""
     
-    def __init__(self, parent=None, title="对话框", width=450, height=250):
+    def __init__(self, parent=None, title="对话框", width=450, height=250, frameless=False):
         super().__init__(parent)
         self.setWindowTitle(title)
         self.setFixedSize(width, height)
-        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.WindowCloseButtonHint)
+        
+        if frameless:
+            # 无边框窗口
+            self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
+            # 允许鼠标拖动窗口
+            self.dragging = False
+            self.drag_position = QPoint()
+        else:
+            self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.WindowCloseButtonHint)
+            
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
         
-        # 设置样式
+        # 设置样式 - 使用边框
         self.setStyleSheet(f"""
             QDialog {{
                 background-color: {BACKGROUND_COLOR};
-                border-radius: 8px;
+                border: 1px solid #E0E0E0;
             }}
         """)
         
         # 添加阴影效果
         shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(20)
-        shadow.setColor(QColor(0, 0, 0, 50))
-        shadow.setOffset(0, 4)
+        shadow.setBlurRadius(10)
+        shadow.setColor(QColor(0, 0, 0, 60))
+        shadow.setOffset(0, 2)
         self.setGraphicsEffect(shadow)
+        
+        # 移除透明背景设置，避免显示异常
+        # self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        
+    def mousePressEvent(self, event: QMouseEvent):
+        """鼠标按下事件，用于实现窗口拖动"""
+        if hasattr(self, 'dragging') and event.button() == Qt.MouseButton.LeftButton:
+            self.dragging = True
+            self.drag_position = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            event.accept()
+
+    def mouseReleaseEvent(self, event: QMouseEvent):
+        """鼠标释放事件"""
+        if hasattr(self, 'dragging'):
+            self.dragging = False
+            event.accept()
+
+    def mouseMoveEvent(self, event: QMouseEvent):
+        """鼠标移动事件，实现窗口拖动"""
+        if hasattr(self, 'dragging') and self.dragging:
+            self.move(event.globalPosition().toPoint() - self.drag_position)
+            event.accept()
 
 class AddShortcutDialog(ModernDialog):
     """添加Chrome快捷方式对话框"""
     
     def __init__(self, parent=None, shortcut_count=0):
-        super().__init__(parent, "添加Chrome快捷方式", 450, 280)
+        super().__init__(parent, "添加Chrome快捷方式", 450, 280, frameless=True)
         
         # 主布局
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(20)
         
-        # 标题
+        # 标题和关闭按钮
+        title_bar = QHBoxLayout()
+        title_bar.setSpacing(0)
+        
         title_label = QLabel("添加新的Chrome实例")
-        title_label.setStyleSheet(f"color: {TEXT_PRIMARY_COLOR}; margin-bottom: 8px; font-weight: bold; font-size: 12pt;")
-        layout.addWidget(title_label)
+        title_label.setStyleSheet(f"color: {TEXT_PRIMARY_COLOR}; font-weight: bold; font-size: 12pt;")
+        
+        close_btn = ModernButton("×")
+        close_btn.setFixedSize(30, 30)
+        close_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                border: none;
+                border-radius: 15px;
+                color: {TEXT_SECONDARY_COLOR};
+                font-size: 16pt;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: rgba(0, 0, 0, 0.05);
+                color: {TEXT_PRIMARY_COLOR};
+            }}
+            QPushButton:pressed {{
+                background-color: rgba(0, 0, 0, 0.1);
+            }}
+        """)
+        close_btn.clicked.connect(self.reject)
+        
+        title_bar.addWidget(title_label)
+        title_bar.addStretch()
+        title_bar.addWidget(close_btn)
+        
+        layout.addLayout(title_bar)
         
         # 表单
         form_layout = QVBoxLayout()
@@ -90,6 +150,41 @@ class AddShortcutDialog(ModernDialog):
         
         self.cancel_button = ModernButton("取消")
         self.ok_button = ModernButton("确定", accent=True)
+        
+        # 优化按钮样式
+        self.cancel_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: #F5F5F5;
+                color: {TEXT_PRIMARY_COLOR};
+                border: 1px solid #E0E0E0;
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-weight: 500;
+            }}
+            QPushButton:hover {{
+                background-color: #EAEAEA;
+            }}
+            QPushButton:pressed {{
+                background-color: #DADADA;
+            }}
+        """)
+        
+        self.ok_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {PRIMARY_COLOR};
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-weight: 500;
+            }}
+            QPushButton:hover {{
+                background-color: #1C75E5;
+            }}
+            QPushButton:pressed {{
+                background-color: #1567D3;
+            }}
+        """)
         
         self.ok_button.clicked.connect(self.accept)
         self.cancel_button.clicked.connect(self.reject)

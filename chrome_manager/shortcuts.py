@@ -37,7 +37,14 @@ class ShortcutManager:
             bool: 是否创建成功
         """
         try:
-            shortcut_path = os.path.join(self.desktop_path, f"{name}.lnk")
+            # 提取数据目录名称作为Profile名称
+            profile_name = os.path.basename(data_dir)
+            
+            # 创建更简洁的显示名称
+            display_name = name
+            
+            # 创建快捷方式路径
+            shortcut_path = os.path.join(self.desktop_path, f"{display_name}.lnk")
             
             # 确保数据目录存在
             os.makedirs(data_dir, exist_ok=True)
@@ -47,7 +54,7 @@ class ShortcutManager:
             shortcut = shell.CreateShortCut(shortcut_path)
             shortcut.Targetpath = chrome_path
             shortcut.Arguments = f'--user-data-dir="{data_dir}"'
-            shortcut.Description = f"Chrome - {name}"
+            shortcut.Description = f"Chrome - {display_name}"
             shortcut.IconLocation = f"{chrome_path}, 0"
             shortcut.WorkingDirectory = os.path.dirname(chrome_path)
             shortcut.save()

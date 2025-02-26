@@ -5,7 +5,7 @@
 import os
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
-    QScrollArea, QGridLayout, QStackedWidget, QStyleFactory, QDialog
+    QScrollArea, QGridLayout, QStackedWidget, QStyleFactory, QDialog, QFileDialog
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
@@ -16,8 +16,8 @@ from .constants import (
 )
 from .config import ConfigManager
 from .shortcuts import ShortcutManager
-from .ui.components import ModernButton
-from .ui.dialogs import AddShortcutDialog, SettingsDialog
+from .ui.components import ModernButton, ModernLineEdit
+from .ui.dialogs import AddShortcutDialog
 from .ui.cards import BrowserCard
 from .ui.message import MessageDialogs
 
@@ -118,7 +118,7 @@ class ChromeShortcutManager(QMainWindow):
         
         # 连接信号
         self.home_btn.clicked.connect(lambda: self.switch_page(0))
-        self.settings_btn.clicked.connect(self.show_settings)
+        self.settings_btn.clicked.connect(lambda: self.switch_page(1))
 
     def create_menu_button(self, text, is_active=False):
         """创建菜单按钮"""
@@ -153,10 +153,19 @@ class ChromeShortcutManager(QMainWindow):
         self.content_stack = QStackedWidget()
         
         # 主页（浏览器网格视图）
+        home_page = self.create_home_page()
+        self.content_stack.addWidget(home_page)
+        
+        # 设置页面
+        settings_page = self.create_settings_page()
+        self.content_stack.addWidget(settings_page)
+
+    def create_home_page(self):
+        """创建主页"""
         home_page = QWidget()
         home_layout = QVBoxLayout(home_page)
-        home_layout.setContentsMargins(32, 32, 32, 32)
-        home_layout.setSpacing(24)
+        home_layout.setContentsMargins(20, 20, 20, 20)  # 减小内边距
+        home_layout.setSpacing(16)  # 减小间距
         
         # 顶部操作栏
         top_bar = QHBoxLayout()
@@ -181,17 +190,107 @@ class ChromeShortcutManager(QMainWindow):
                 border: none;
                 background-color: transparent;
             }
+            QScrollBar:vertical {
+                width: 8px;
+                background: transparent;
+            }
+            QScrollBar::handle:vertical {
+                background: #CCCCCC;
+                border-radius: 4px;
+                min-height: 20px;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+                background: transparent;
+            }
         """)
         
         self.grid_widget = QWidget()
+        self.grid_widget.setStyleSheet("background-color: transparent;")
         self.grid_layout = QGridLayout(self.grid_widget)
         self.grid_layout.setContentsMargins(0, 0, 0, 0)
-        self.grid_layout.setSpacing(24)
+        self.grid_layout.setSpacing(16)
         
         scroll_area.setWidget(self.grid_widget)
         home_layout.addWidget(scroll_area)
         
-        self.content_stack.addWidget(home_page)
+        return home_page
+        
+    def create_settings_page(self):
+        """创建设置页面"""
+        settings_page = QWidget()
+        settings_layout = QVBoxLayout(settings_page)
+        settings_layout.setContentsMargins(32, 32, 32, 32)
+        settings_layout.setSpacing(24)
+        
+        # 顶部标题
+        page_title = QLabel("全局设置")
+        page_title.setFont(QFont(FONT_FAMILY, 24, QFont.Weight.Bold))
+        settings_layout.addWidget(page_title)
+        
+        # 设置内容区域
+        content_widget = QWidget()
+        content_layout = QVBoxLayout(content_widget)
+        content_layout.setContentsMargins(0, 24, 0, 0)
+        content_layout.setSpacing(24)
+        
+        # Chrome路径设置
+        chrome_layout = QVBoxLayout()
+        chrome_layout.setSpacing(8)
+        
+        chrome_label = QLabel("Chrome路径")
+        chrome_label.setStyleSheet(f"color: {TEXT_SECONDARY_COLOR}; font-size: 14px;")
+        
+        chrome_input_layout = QHBoxLayout()
+        self.chrome_path_edit = ModernLineEdit(self.chrome_path)
+        browse_chrome_btn = ModernButton("浏览...")
+        browse_chrome_btn.setFixedWidth(90)
+        browse_chrome_btn.clicked.connect(self.browse_chrome)
+        
+        chrome_input_layout.addWidget(self.chrome_path_edit)
+        chrome_input_layout.addWidget(browse_chrome_btn)
+        
+        chrome_layout.addWidget(chrome_label)
+        chrome_layout.addLayout(chrome_input_layout)
+        
+        content_layout.addLayout(chrome_layout)
+        
+        # 数据根目录设置
+        data_layout = QVBoxLayout()
+        data_layout.setSpacing(8)
+        
+        data_label = QLabel("数据根目录")
+        data_label.setStyleSheet(f"color: {TEXT_SECONDARY_COLOR}; font-size: 14px;")
+        
+        data_input_layout = QHBoxLayout()
+        self.data_root_edit = ModernLineEdit(self.data_root)
+        browse_data_btn = ModernButton("浏览...")
+        browse_data_btn.setFixedWidth(90)
+        browse_data_btn.clicked.connect(self.browse_data_root)
+        
+        data_input_layout.addWidget(self.data_root_edit)
+        data_input_layout.addWidget(browse_data_btn)
+        
+        data_layout.addWidget(data_label)
+        data_layout.addLayout(data_input_layout)
+        
+        content_layout.addLayout(data_layout)
+        
+        # 保存按钮
+        save_layout = QHBoxLayout()
+        save_btn = ModernButton("保存设置", accent=True)
+        save_btn.clicked.connect(self.save_settings)
+        save_layout.addStretch()
+        save_layout.addWidget(save_btn)
+        
+        content_layout.addStretch()
+        content_layout.addLayout(save_layout)
+        
+        settings_layout.addWidget(content_widget)
+        
+        return settings_page
 
     def switch_page(self, index):
         """切换页面"""
@@ -200,18 +299,47 @@ class ChromeShortcutManager(QMainWindow):
         # 更新菜单按钮状态
         self.home_btn.setChecked(index == 0)
         self.settings_btn.setChecked(index == 1)
+        
+        # 如果切换到设置页面，更新输入框的值
+        if index == 1:
+            self.chrome_path_edit.setText(self.chrome_path)
+            self.data_root_edit.setText(self.data_root)
 
-    def show_settings(self):
-        """显示设置对话框"""
-        dialog = SettingsDialog(self, self.chrome_path, self.data_root)
-        if dialog.exec() == QDialog.DialogCode.Accepted:
-            chrome_path, data_root = dialog.get_values()
-            if chrome_path and data_root:
-                self.chrome_path = chrome_path
-                self.data_root = data_root
-                self.user_modified_data_root = True
-                self.auto_save_config()
-                self.message_dialogs.show_success_message("设置已保存")
+    def browse_chrome(self):
+        """浏览选择Chrome可执行文件"""
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "选择Chrome可执行文件",
+            os.path.dirname(self.chrome_path_edit.text()),
+            "可执行文件 (*.exe)"
+        )
+        if path:
+            self.chrome_path_edit.setText(path)
+    
+    def browse_data_root(self):
+        """浏览选择数据根目录"""
+        path = QFileDialog.getExistingDirectory(
+            self,
+            "选择数据根目录",
+            self.data_root_edit.text() or os.getcwd()
+        )
+        if path:
+            self.data_root_edit.setText(path)
+            
+    def save_settings(self):
+        """保存设置"""
+        chrome_path = self.chrome_path_edit.text().strip()
+        data_root = self.data_root_edit.text().strip()
+        
+        if chrome_path and data_root:
+            self.chrome_path = chrome_path
+            self.data_root = data_root
+            self.user_modified_data_root = True
+            self.auto_save_config()
+            self.message_dialogs.show_success_message("设置已保存")
+            self.switch_page(0)  # 保存后返回主页
+        else:
+            self.message_dialogs.show_error_message("Chrome路径和数据根目录不能为空！")
 
     def update_browser_grid(self):
         """更新浏览器网格"""
@@ -219,27 +347,46 @@ class ChromeShortcutManager(QMainWindow):
         for i in reversed(range(self.grid_layout.count())): 
             self.grid_layout.itemAt(i).widget().setParent(None)
         
+        # 设置网格布局属性
+        self.grid_layout.setSpacing(16)  # 设置基础间距
+        self.grid_layout.setContentsMargins(0, 0, 0, 0)  # 移除外边距
+        self.grid_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)  # 严格左上对齐
+        
         # 添加浏览器卡片
-        row = 0
-        col = 0
-        max_cols = 4  # 每行最多显示4个卡片
-        
-        for shortcut in self.shortcuts:
-            card = BrowserCard(shortcut["name"], shortcut["data_dir"], self.chrome_path)
-            self.grid_layout.addWidget(card, row, col)
-            
-            col += 1
-            if col >= max_cols:
-                col = 0
-                row += 1
-        
-        # 添加空白卡片提示
         if not self.shortcuts:
             empty_label = QLabel('暂无Chrome实例\n点击"添加新实例"创建')
             empty_label.setFont(QFont(FONT_FAMILY, 14))
             empty_label.setStyleSheet(f"color: {TEXT_HINT_COLOR};")
             empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.grid_layout.addWidget(empty_label, 0, 0, 1, max_cols)
+            self.grid_layout.addWidget(empty_label, 0, 0)
+            return
+        
+        # 固定每行最多显示的卡片数量
+        # 根据窗口宽度调整，窗口越宽，每行显示的卡片越多
+        card_width = 180  # 卡片宽度
+        card_spacing = 16  # 卡片间距
+        
+        # 获取当前可用宽度
+        available_width = self.grid_widget.width() - 20  # 预留一点边距
+        
+        # 计算每行最多能放几个卡片
+        cols_per_row = max(1, (available_width + card_spacing) // (card_width + card_spacing))
+        
+        # 添加卡片到网格
+        for i, shortcut in enumerate(self.shortcuts):
+            row = i // cols_per_row
+            col = i % cols_per_row
+            card = BrowserCard(shortcut["name"], shortcut["data_dir"], self.chrome_path)
+            self.grid_layout.addWidget(card, row, col)
+        
+        # 确保卡片之间的水平间距设置正确
+        self.grid_layout.setHorizontalSpacing(card_spacing)
+
+    def resizeEvent(self, event):
+        """窗口大小改变事件"""
+        super().resizeEvent(event)
+        # 窗口大小改变时更新网格布局
+        self.update_browser_grid()
 
     def add_shortcut(self):
         """添加新快捷方式"""
