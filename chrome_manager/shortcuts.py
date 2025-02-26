@@ -85,13 +85,11 @@ class ShortcutManager:
                 os.remove(shortcut_path)
                 print(f"快捷方式已删除: {shortcut_path}")
             
-            # 删除数据目录（可选）
-            # 注意：这可能会删除用户的浏览数据，所以这里只打印提示而不实际删除
-            print(f"数据目录可能包含用户数据，不会自动删除: {data_dir}")
-            # 如果确实需要删除数据目录，可以取消下面的注释：
-            # import shutil
-            # if os.path.exists(data_dir):
-            #     shutil.rmtree(data_dir)
+            # 删除数据目录
+            import shutil
+            if os.path.exists(data_dir):
+                shutil.rmtree(data_dir)
+                print(f"数据目录已删除: {data_dir}")
             
             return True
         except Exception as e:

@@ -146,14 +146,84 @@ class BrowserCard(QFrame):
             msg_box = QMessageBox()
             msg_box.setWindowTitle("确认删除")
             msg_box.setText(f"确定要删除 {self.name} 吗？")
-            msg_box.setInformativeText("删除后将无法恢复，请谨慎操作！")
+            msg_box.setInformativeText("此操作将删除快捷方式和对应的数据目录，删除后将无法恢复！")
             msg_box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
             msg_box.setDefaultButton(QMessageBox.StandardButton.No)
             msg_box.setIcon(QMessageBox.Icon.Warning)
             
-            # 设置字体
+            # 设置字体和样式
             font = QFont("Microsoft YaHei UI", 9)
             msg_box.setFont(font)
+            
+            # 应用现代化样式
+            msg_box.setStyleSheet("""
+                QMessageBox {
+                    background-color: white;
+                    border-radius: 8px;
+                }
+                QLabel {
+                    color: #1F1F1F;
+                    font-size: 14px;
+                    padding: 10px;
+                }
+                QLabel#qt_msgbox_label {
+                    font-weight: 500;
+                    font-size: 15px;
+                    padding-bottom: 0px;
+                }
+                QLabel#qt_msgbox_informativelabel {
+                    color: #666666;
+                    font-size: 13px;
+                    padding-top: 0px;
+                }
+                QLabel#qt_msgboxex_icon_label {
+                    padding: 15px;
+                }
+                QPushButton {
+                    background-color: #F5F5F5;
+                    color: #333333;
+                    border: none;
+                    border-radius: 6px;
+                    padding: 8px 24px;
+                    min-width: 90px;
+                    font-size: 13px;
+                    font-weight: 500;
+                    margin: 0px 5px;
+                }
+                QPushButton:hover {
+                    background-color: #EEEEEE;
+                }
+                QPushButton:pressed {
+                    background-color: #E0E0E0;
+                }
+                QPushButton[text="删除"] {
+                    background-color: #FF4D4F;
+                    color: white;
+                }
+                QPushButton[text="删除"]:hover {
+                    background-color: #FF7875;
+                }
+                QPushButton[text="删除"]:pressed {
+                    background-color: #D9363E;
+                }
+                QPushButton[text="取消"] {
+                    background-color: white;
+                    border: 1px solid #D9D9D9;
+                }
+                QPushButton[text="取消"]:hover {
+                    background-color: #FAFAFA;
+                    border-color: #40A9FF;
+                    color: #40A9FF;
+                }
+            """)
+            
+            # 自定义按钮文本
+            yes_button = msg_box.button(QMessageBox.StandardButton.Yes)
+            no_button = msg_box.button(QMessageBox.StandardButton.No)
+            if yes_button:
+                yes_button.setText("删除")
+            if no_button:
+                no_button.setText("取消")
             
             ret = msg_box.exec()
             if ret == QMessageBox.StandardButton.Yes:

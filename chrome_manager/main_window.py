@@ -456,11 +456,6 @@ class ChromeShortcutManager(QMainWindow):
             # 确保数据目录是绝对路径
             data_dir = os.path.join(self.data_root, dir_name)
             
-            # 显示将要创建的数据目录路径
-            msg = f"将在以下位置创建数据目录:\n{data_dir}\n\n是否继续?"
-            if not self.message_dialogs.show_confirm_dialog(msg, "确认创建"):
-                return
-                
             shortcut = {
                 "name": name,
                 "data_dir": data_dir
@@ -473,7 +468,7 @@ class ChromeShortcutManager(QMainWindow):
             # 创建快捷方式
             success = self.shortcut_manager.create_shortcut(name, data_dir, self.chrome_path)
             if success:
-                self.message_dialogs.show_success_message(f"Chrome实例 '{name}' 创建成功！")
+                self.statusBar().showMessage(f"Chrome实例 '{name}' 创建成功", 3000)  # 显示3秒
             
     def load_config(self):
         """加载配置"""
@@ -511,7 +506,7 @@ class ChromeShortcutManager(QMainWindow):
         if success:
             self.update_browser_grid()
             self.auto_save_config()
-            self.message_dialogs.show_success_message(f"Chrome实例 '{name}' 已删除")
+            self.statusBar().showMessage(f"Chrome实例 '{name}' 已删除", 3000)  # 显示3秒
     
     def toggle_batch_mode(self):
         """切换批量操作模式"""
@@ -532,15 +527,7 @@ class ChromeShortcutManager(QMainWindow):
         selected_cards = [card for card in self.card_widgets if card.is_selected]
         
         if not selected_cards:
-            self.message_dialogs.show_error_message("请先选择要删除的Chrome实例！")
-            return
-        
-        # 确认删除
-        count = len(selected_cards)
-        if not self.message_dialogs.show_confirm_dialog(
-            f"确定要删除选中的 {count} 个Chrome实例吗？\n删除后将无法恢复，请谨慎操作！",
-            "确认批量删除"
-        ):
+            self.statusBar().showMessage("请先选择要删除的Chrome实例", 3000)
             return
         
         # 执行删除
@@ -555,7 +542,7 @@ class ChromeShortcutManager(QMainWindow):
         if deleted_count > 0:
             self.update_browser_grid()
             self.auto_save_config()
-            self.message_dialogs.show_success_message(f"已成功删除 {deleted_count} 个Chrome实例")
+            self.statusBar().showMessage(f"已删除 {deleted_count} 个Chrome实例", 3000)
         
         # 退出批量模式
         self.toggle_batch_mode() 
