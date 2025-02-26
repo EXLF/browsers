@@ -4,7 +4,7 @@
 
 from PyQt6.QtWidgets import QLineEdit, QPushButton, QWidget, QLabel
 from PyQt6.QtCore import Qt, QSize, QRectF
-from PyQt6.QtGui import QFont, QPainter, QPainterPath, QColor
+from PyQt6.QtGui import QPainter, QPainterPath, QColor
 
 from ..constants import (
     PRIMARY_COLOR, BACKGROUND_COLOR, BORDER_COLOR, TEXT_PRIMARY_COLOR, 
@@ -17,7 +17,6 @@ class ModernLineEdit(QLineEdit):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.setFont(QFont(FONT_FAMILY, 9))
         self.setMinimumHeight(36)
         self.setStyleSheet(f"""
             QLineEdit {{
@@ -46,7 +45,6 @@ class ModernButton(QPushButton):
     def __init__(self, text="", icon=None, accent=False, *args, **kwargs):
         super().__init__(text, *args, **kwargs)
         self.accent = accent
-        self.setFont(QFont(FONT_FAMILY, 9))
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setMinimumHeight(36)
         
@@ -159,5 +157,4 @@ class StatusWidget(QWidget):
         
         # 绘制文本
         painter.setPen(text_color)
-        painter.setFont(QFont(FONT_FAMILY, 8))
         painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, self.status) 

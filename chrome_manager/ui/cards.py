@@ -5,7 +5,7 @@
 import os
 from PyQt6.QtWidgets import QFrame, QVBoxLayout, QLabel, QMessageBox
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont, QIcon
+from PyQt6.QtGui import QIcon
 
 from ..constants import (
     PRIMARY_COLOR, BACKGROUND_COLOR, BORDER_COLOR, 
@@ -77,15 +77,13 @@ class BrowserCard(QFrame):
         
         # 名称标签
         name_label = QLabel(self.name)
-        name_label.setFont(QFont(FONT_FAMILY, 12, QFont.Weight.Bold))
-        name_label.setStyleSheet(f"color: {TEXT_PRIMARY_COLOR};")
+        name_label.setStyleSheet(f"color: {TEXT_PRIMARY_COLOR}; font-weight: bold; font-size: 12pt;")
         name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(name_label)
         
         # 数据目录标签
         dir_label = QLabel(self.data_dir)
-        dir_label.setFont(QFont(FONT_FAMILY, 8))
-        dir_label.setStyleSheet(f"color: {TEXT_SECONDARY_COLOR};")
+        dir_label.setStyleSheet(f"color: {TEXT_SECONDARY_COLOR}; font-size: 8pt;")
         dir_label.setWordWrap(True)
         dir_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(dir_label)
@@ -102,9 +100,12 @@ class BrowserCard(QFrame):
         """启动浏览器实例"""
         try:
             import subprocess
-            subprocess.Popen([
+            # 修复命令行参数格式
+            cmd = [
                 self.chrome_path,
-                f'--user-data-dir="{self.data_dir}"'
-            ])
+                f'--user-data-dir={self.data_dir}'  # 移除多余的引号
+            ]
+            print(f"启动Chrome命令: {cmd}")
+            subprocess.Popen(cmd)
         except Exception as e:
             QMessageBox.critical(self, "错误", f"启动Chrome失败：{str(e)}") 

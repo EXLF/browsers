@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import Qt
 
 from chrome_manager.main_window import ChromeShortcutManager
-from chrome_manager.utils import load_system_font
+from chrome_manager.utils import apply_font_to_app
 import chrome_manager.constants as constants
 
 def main():
@@ -23,11 +23,10 @@ def main():
         
         app = QApplication(sys.argv)
         
-        # 加载字体
-        constants.FONT_FAMILY = load_system_font()
+        # 应用全局字体
+        apply_font_to_app(app)
         
         # 添加调试信息
-        print(f"加载字体: {constants.FONT_FAMILY}")
         print(f"Python版本: {sys.version}")
         try:
             from PyQt6.QtCore import QLibraryInfo

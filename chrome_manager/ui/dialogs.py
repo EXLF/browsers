@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
     QGraphicsDropShadowEffect, QFileDialog
 )
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont, QColor
+from PyQt6.QtGui import QColor
 
 from ..constants import (
     PRIMARY_COLOR, BACKGROUND_COLOR, TEXT_PRIMARY_COLOR, 
@@ -54,8 +54,7 @@ class AddShortcutDialog(ModernDialog):
         
         # 标题
         title_label = QLabel("添加新的Chrome实例")
-        title_label.setFont(QFont(FONT_FAMILY, 12, QFont.Weight.Bold))
-        title_label.setStyleSheet(f"color: {TEXT_PRIMARY_COLOR}; margin-bottom: 8px;")
+        title_label.setStyleSheet(f"color: {TEXT_PRIMARY_COLOR}; margin-bottom: 8px; font-weight: bold; font-size: 12pt;")
         layout.addWidget(title_label)
         
         # 表单
@@ -66,7 +65,6 @@ class AddShortcutDialog(ModernDialog):
         name_layout = QVBoxLayout()
         name_layout.setSpacing(8)
         name_label = QLabel("快捷方式名称")
-        name_label.setFont(QFont(FONT_FAMILY, 9))
         name_label.setStyleSheet(f"color: {TEXT_SECONDARY_COLOR};")
         self.name_edit = ModernLineEdit(f"Chrome实例{shortcut_count + 1}")
         name_layout.addWidget(name_label)
@@ -77,7 +75,6 @@ class AddShortcutDialog(ModernDialog):
         dir_layout = QVBoxLayout()
         dir_layout.setSpacing(8)
         dir_label = QLabel("数据目录名")
-        dir_label.setFont(QFont(FONT_FAMILY, 9))
         dir_label.setStyleSheet(f"color: {TEXT_SECONDARY_COLOR};")
         self.dir_edit = ModernLineEdit(f"Profile{shortcut_count + 1}")
         dir_layout.addWidget(dir_label)
@@ -122,7 +119,7 @@ class SettingsDialog(ModernDialog):
         
         # 标题
         title_label = QLabel("全局设置")
-        title_label.setFont(QFont(FONT_FAMILY, 16, QFont.Weight.Bold))
+        title_label.setStyleSheet(f"color: {TEXT_PRIMARY_COLOR}; font-weight: bold; font-size: 16pt;")
         layout.addWidget(title_label)
         
         # Chrome路径设置
@@ -130,7 +127,6 @@ class SettingsDialog(ModernDialog):
         chrome_layout.setSpacing(8)
         
         chrome_label = QLabel("Chrome路径")
-        chrome_label.setFont(QFont(FONT_FAMILY, 9))
         chrome_label.setStyleSheet(f"color: {TEXT_SECONDARY_COLOR};")
         
         chrome_input_layout = QHBoxLayout()
@@ -152,7 +148,6 @@ class SettingsDialog(ModernDialog):
         data_layout.setSpacing(8)
         
         data_label = QLabel("数据根目录")
-        data_label.setFont(QFont(FONT_FAMILY, 9))
         data_label.setStyleSheet(f"color: {TEXT_SECONDARY_COLOR};")
         
         data_input_layout = QHBoxLayout()

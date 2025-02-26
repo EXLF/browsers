@@ -3,8 +3,9 @@
 """
 
 import os
+import sys
 from PyQt6.QtWidgets import QApplication
-from PyQt6.QtGui import QFontDatabase
+from PyQt6.QtGui import QFontDatabase, QFont
 
 def load_system_font():
     """
@@ -13,16 +14,26 @@ def load_system_font():
     Returns:
         str: 字体家族名称
     """
-    # 尝试加载微软雅黑字体，如果失败则使用系统默认字体
-    try:
-        if os.path.exists("C:/Windows/Fonts/msyh.ttc"):
-            font_id = QFontDatabase.addApplicationFont("C:/Windows/Fonts/msyh.ttc")
-            if font_id >= 0:
-                font_families = QFontDatabase.applicationFontFamilies(font_id)
-                if font_families:
-                    return font_families[0]
-    except Exception:
-        pass
+    # 直接返回微软雅黑字体名称，不再尝试加载字体文件
+    # 因为Windows系统已经内置了这个字体
+    if sys.platform == 'win32':
+        return "Microsoft YaHei UI"
     
-    # 如果无法加载微软雅黑，返回系统默认字体
-    return QApplication.font().family() 
+    # 对于非Windows系统，尝试加载系统默认字体
+    return QApplication.font().family()
+
+def apply_font_to_app(app):
+    """
+    将字体应用到整个应用程序
+    
+    Args:
+        app: QApplication实例
+    """
+    font_name = load_system_font()
+    font = QFont(font_name, 9)
+    app.setFont(font)
+    
+    print(f"应用全局字体: {font_name}")
+    
+    # 确保所有控件都使用这个字体
+    QApplication.setFont(font)

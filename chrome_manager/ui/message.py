@@ -3,7 +3,6 @@
 """
 
 from PyQt6.QtWidgets import QMessageBox
-from PyQt6.QtGui import QFont
 
 from ..constants import (
     PRIMARY_COLOR, BACKGROUND_COLOR, TEXT_PRIMARY_COLOR, FONT_FAMILY
@@ -33,7 +32,6 @@ class MessageDialogs:
         msg_box.setIcon(QMessageBox.Icon.Information)
         msg_box.setWindowTitle(title)
         msg_box.setText(message)
-        msg_box.setFont(QFont(FONT_FAMILY, 9))
         msg_box.setStyleSheet(self._get_message_style())
         msg_box.exec()
     
@@ -49,7 +47,6 @@ class MessageDialogs:
         msg_box.setIcon(QMessageBox.Icon.Critical)
         msg_box.setWindowTitle(title)
         msg_box.setText(message)
-        msg_box.setFont(QFont(FONT_FAMILY, 9))
         msg_box.setStyleSheet(self._get_message_style())
         msg_box.exec()
     
@@ -65,7 +62,6 @@ class MessageDialogs:
         msg_box.setIcon(QMessageBox.Icon.Information)
         msg_box.setWindowTitle(title)
         msg_box.setText(message)
-        msg_box.setFont(QFont(FONT_FAMILY, 9))
         msg_box.setStyleSheet(self._get_message_style())
         msg_box.exec()
     
@@ -84,7 +80,6 @@ class MessageDialogs:
         msg_box.setIcon(QMessageBox.Icon.Question)
         msg_box.setWindowTitle(title)
         msg_box.setText(message)
-        msg_box.setFont(QFont(FONT_FAMILY, 9))
         msg_box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         msg_box.setDefaultButton(QMessageBox.StandardButton.Yes)
         msg_box.setStyleSheet(self._get_message_style())
@@ -103,7 +98,6 @@ class MessageDialogs:
             }}
             QLabel {{
                 color: {TEXT_PRIMARY_COLOR};
-                font-family: "{FONT_FAMILY}";
             }}
             QPushButton {{
                 background-color: {PRIMARY_COLOR};
@@ -113,7 +107,6 @@ class MessageDialogs:
                 padding: 8px 16px;
                 min-width: 80px;
                 min-height: 30px;
-                font-family: "{FONT_FAMILY}";
             }}
             QPushButton:hover {{
                 background-color: #1C75E5;

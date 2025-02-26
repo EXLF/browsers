@@ -15,4 +15,4 @@ TEXT_SECONDARY_COLOR = "#666666"
 TEXT_HINT_COLOR = "#999999"
 
 # 全局字体变量
-FONT_FAMILY = None 
+FONT_FAMILY = "Microsoft YaHei UI" if __import__('sys').platform == 'win32' else "Arial" 

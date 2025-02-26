@@ -31,9 +31,6 @@ class ChromeShortcutManager(QMainWindow):
         self.setWindowTitle("Chrome多实例快捷方式管理器")
         self.setMinimumSize(1200, 800)
         
-        # 应用全局字体
-        self.setFont(QFont(FONT_FAMILY, 9))
-        
         # 初始化消息对话框工具类
         self.message_dialogs = MessageDialogs(self)
         
