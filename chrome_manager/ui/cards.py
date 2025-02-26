@@ -3,15 +3,70 @@
 """
 
 import os
+import sys
 from PyQt6.QtWidgets import QFrame, QVBoxLayout, QLabel, QMessageBox, QHBoxLayout, QCheckBox, QPushButton, QWidget
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QIcon, QFont
+from PyQt6.QtGui import QIcon, QFont, QPixmap
+
+# 导入提取图标所需的库
+if sys.platform == 'win32':
+    try:
+        import win32com.client
+    except ImportError:
+        print("无法导入win32com模块，将使用备用图标")
 
 from ..constants import (
     PRIMARY_COLOR, BACKGROUND_COLOR, BORDER_COLOR, 
     TEXT_PRIMARY_COLOR, TEXT_SECONDARY_COLOR, FONT_FAMILY
 )
 from .components import ModernButton
+
+# 添加图标提取函数
+def extract_icon_from_exe(exe_path):
+    """
+    从exe文件中提取图标
+    
+    Args:
+        exe_path: exe文件路径
+        
+    Returns:
+        QPixmap: 提取的图标
+    """
+    try:
+        if not os.path.exists(exe_path):
+            return None
+            
+        if sys.platform == 'win32':
+            # 使用快捷方式方法提取图标（更可靠）
+            try:
+                # 创建临时快捷方式
+                shell = win32com.client.Dispatch("WScript.Shell")
+                shortcut = shell.CreateShortCut("temp.lnk")
+                shortcut.TargetPath = exe_path
+                # 使用Chrome的默认图标
+                shortcut.IconLocation = f"{exe_path}, 0"
+                shortcut.Save()
+                
+                # 从快捷方式创建QIcon并获取像素图
+                if os.path.exists("temp.lnk"):
+                    icon = QIcon("temp.lnk")
+                    # 清理临时文件
+                    os.remove("temp.lnk")
+                    
+                    if not icon.isNull():
+                        return icon.pixmap(48, 48)
+            except Exception as e:
+                print(f"创建临时快捷方式提取图标时出错: {str(e)}")
+        
+        # 尝试直接从exe创建QIcon
+        icon = QIcon(exe_path)
+        if not icon.isNull():
+            return icon.pixmap(48, 48)
+            
+        return None
+    except Exception as e:
+        print(f"提取图标时出错: {str(e)}")
+        return None
 
 class BrowserCard(QFrame):
     """浏览器实例卡片组件"""
@@ -99,18 +154,45 @@ class BrowserCard(QFrame):
         
         layout.addLayout(top_layout)
         
-        # Chrome图标 - 圆形蓝色背景
+        # Chrome图标 - 使用指定图片作为图标
         icon_label = QLabel()
-        icon_label.setFixedSize(48, 48)  # 更小的图标尺寸
-        icon_label.setText("Chrome")
-        icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        icon_label.setStyleSheet("""
-            background-color: #4285F4;
-            color: white;
-            border-radius: 24px;
-            font-size: 12px;
-            font-weight: bold;
-        """)
+        icon_label.setFixedSize(48, 48)  # 图标尺寸
+        
+        # 图标图片路径
+        icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "resources", "icons", "image.png")
+        
+        # 检查图片是否存在
+        if os.path.exists(icon_path):
+            # 加载图片
+            pixmap = QPixmap(icon_path)
+            icon_label.setPixmap(pixmap)
+            icon_label.setScaledContents(True)  # 确保图标填充整个标签
+        else:
+            # 如果图片不存在，尝试提取Chrome图标作为备选
+            chrome_pixmap = extract_icon_from_exe(self.chrome_path)
+            
+            if chrome_pixmap:
+                # 如果成功提取到图标，则使用它
+                icon_label.setPixmap(chrome_pixmap)
+                icon_label.setScaledContents(True)  # 确保图标填充整个标签
+            else:
+                # 如果无法提取图标，则使用CSS绘制的Chrome风格图标作为最后备选
+                icon_label.setStyleSheet("""
+                    QLabel {
+                        background-color: transparent;
+                        border-radius: 24px;
+                        background: qradialgradient(
+                            cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5, 
+                            stop:0 #4285F4, stop:0.3 #4285F4, 
+                            stop:0.31 white, stop:0.34 white, 
+                            stop:0.35 #4285F4, stop:0.37 #4285F4,
+                            stop:0.38 #34A853, stop:0.50 #34A853,
+                            stop:0.51 #FBBC05, stop:0.63 #FBBC05,
+                            stop:0.64 #EA4335, stop:0.76 #EA4335,
+                            stop:0.77 #4285F4, stop:1 #4285F4
+                        );
+                    }
+                """)
         
         layout.addWidget(icon_label, 0, Qt.AlignmentFlag.AlignCenter)
         
