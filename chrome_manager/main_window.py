@@ -27,9 +27,13 @@ class ChromeShortcutManager(QMainWindow):
     def __init__(self):
         super().__init__()
         
-        # 设置窗口标题和大小
+        # 设置窗口标题和固定大小
         self.setWindowTitle("Chrome多实例快捷方式管理器")
         self.setMinimumSize(1200, 800)
+        self.setFixedSize(1200, 800)  # 设置固定大小
+        
+        # 允许最大化按钮
+        self.setWindowFlags(self.windowFlags() | Qt.WindowType.WindowMaximizeButtonHint)
         
         # 初始化消息对话框工具类
         self.message_dialogs = MessageDialogs(self)
@@ -349,8 +353,8 @@ class ChromeShortcutManager(QMainWindow):
         
         # 设置网格布局属性
         self.grid_layout.setSpacing(16)  # 设置基础间距
-        self.grid_layout.setContentsMargins(0, 0, 0, 0)  # 移除外边距
-        self.grid_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)  # 严格左上对齐
+        self.grid_layout.setContentsMargins(40, 20, 40, 20)  # 设置外边距，左右对称
+        self.grid_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)  # 顶部水平居中对齐
         
         # 添加浏览器卡片
         if not self.shortcuts:
@@ -361,32 +365,36 @@ class ChromeShortcutManager(QMainWindow):
             self.grid_layout.addWidget(empty_label, 0, 0)
             return
         
-        # 固定每行最多显示的卡片数量
-        # 根据窗口宽度调整，窗口越宽，每行显示的卡片越多
+        # 卡片参数
         card_width = 180  # 卡片宽度
-        card_spacing = 16  # 卡片间距
+        card_spacing = 40  # 增加卡片间距到40像素
         
-        # 获取当前可用宽度
-        available_width = self.grid_widget.width() - 20  # 预留一点边距
-        
-        # 计算每行最多能放几个卡片
-        cols_per_row = max(1, (available_width + card_spacing) // (card_width + card_spacing))
+        # 根据窗口状态确定布局
+        if self.isMaximized():
+            # 最大化状态：动态计算列数，但确保间距合理
+            available_width = self.grid_widget.width() - 80  # 减去左右边距
+            max_cols = min(6, (available_width + card_spacing) // (card_width + card_spacing))
+        else:
+            # 默认大小状态：固定4列
+            max_cols = 4
         
         # 添加卡片到网格
         for i, shortcut in enumerate(self.shortcuts):
-            row = i // cols_per_row
-            col = i % cols_per_row
+            row = i // max_cols
+            col = i % max_cols
             card = BrowserCard(shortcut["name"], shortcut["data_dir"], self.chrome_path)
             self.grid_layout.addWidget(card, row, col)
         
-        # 确保卡片之间的水平间距设置正确
-        self.grid_layout.setHorizontalSpacing(card_spacing)
+        # 设置水平和垂直间距
+        self.grid_layout.setHorizontalSpacing(card_spacing)  # 增加水平间距
+        self.grid_layout.setVerticalSpacing(card_spacing)  # 增加垂直间距
 
-    def resizeEvent(self, event):
-        """窗口大小改变事件"""
-        super().resizeEvent(event)
-        # 窗口大小改变时更新网格布局
-        self.update_browser_grid()
+    def changeEvent(self, event):
+        """窗口状态改变事件（最大化/还原）"""
+        if event.type() == event.Type.WindowStateChange:
+            # 窗口状态改变时更新网格布局
+            self.update_browser_grid()
+        super().changeEvent(event)
 
     def add_shortcut(self):
         """添加新快捷方式"""
