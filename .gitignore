@@ -1,3 +1,15 @@
+# Python虚拟环境
+venv/
+__pycache__/
+*.pyc
+
+# 配置文件
+config.json
+
+# IDE文件
+.vscode/
+.idea/
+
 # Python
 __pycache__/
 *.py[cod]
@@ -20,26 +32,16 @@ wheels/
 .installed.cfg
 *.egg
 
-# Virtual Environment
-venv/
-env/
-ENV/
-
-# IDE
+# PyCharm
 .idea/
+
+# VS Code
 .vscode/
-*.swp
-*.swo
 
-# Logs
-*.log
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
 
-# Local environment
-.env
-
-# Qdrant
-qdrant_storage/
-
-# Other
-.DS_Store
-Thumbs.db 
+# Chrome数据目录
+Profile*/ 
