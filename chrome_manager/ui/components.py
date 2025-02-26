@@ -157,4 +157,16 @@ class StatusWidget(QWidget):
         
         # 绘制文本
         painter.setPen(text_color)
-        painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, self.status) 
+        painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, self.status)
+
+class SectionTitle(QLabel):
+    """大标题组件"""
+    
+    def __init__(self, text, *args, **kwargs):
+        super().__init__(text, *args, **kwargs)
+        self.setStyleSheet(f"""
+            font-size: 18px;
+            font-weight: bold;
+            color: {TEXT_PRIMARY_COLOR};
+            margin-bottom: 16px;
+        """) 

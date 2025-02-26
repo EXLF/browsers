@@ -335,4 +335,209 @@ class BrowserCard(QFrame):
             print(f"启动Chrome命令: {cmd}")
             subprocess.Popen(cmd)
         except Exception as e:
-            QMessageBox.critical(self, "错误", f"启动Chrome失败：{str(e)}") 
+            QMessageBox.critical(self, "错误", f"启动Chrome失败：{str(e)}")
+
+class ChromeStoreSearchResultCard(QFrame):
+    """Chrome商店搜索结果卡片组件"""
+    
+    def __init__(self, extension, parent=None, on_add=None, is_installed=False):
+        """
+        初始化Chrome商店搜索结果卡片
+        
+        Args:
+            extension: 扩展信息字典
+            parent: 父组件
+            on_add: 添加回调
+            is_installed: 是否已安装
+        """
+        super().__init__(parent)
+        self.extension = extension
+        self.on_add = on_add
+        self.is_installed = is_installed
+        self.setup_ui()
+    
+    def setup_ui(self):
+        """初始化UI"""
+        self.setFixedHeight(120)  # 卡片高度
+        self.setMinimumWidth(400)  # 最小宽度
+        self.setStyleSheet("""
+            QFrame {
+                background-color: white;
+                border: 1px solid #E0E0E0;
+                border-radius: 10px;
+            }
+            QFrame:hover {
+                border: 1px solid #BDBDBD;
+                background-color: #F9F9F9;
+            }
+        """)
+        
+        # 主布局
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(15, 15, 15, 15)
+        layout.setSpacing(15)
+        
+        # 扩展图标
+        icon_label = QLabel()
+        icon_label.setFixedSize(48, 48)  # 图标尺寸
+        
+        # 尝试加载图标
+        if self.extension.get('icon') and os.path.exists(self.extension.get('icon')):
+            pixmap = QPixmap(self.extension.get('icon'))
+            icon_label.setPixmap(pixmap.scaled(48, 48, Qt.AspectRatioMode.KeepAspectRatio))
+            icon_label.setScaledContents(True)
+        else:
+            # 默认图标 - 使用扩展名称首字母
+            extension_initial = self.extension.get('name', '扩展')[0].upper()
+            icon_label.setText(extension_initial)
+            icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            icon_label.setStyleSheet("""
+                background-color: #4285F4;
+                color: white;
+                border-radius: 24px;
+                font-size: 18px;
+                font-weight: bold;
+            """)
+        
+        layout.addWidget(icon_label)
+        
+        # 中间信息区域
+        info_layout = QVBoxLayout()
+        info_layout.setContentsMargins(0, 0, 0, 0)
+        info_layout.setSpacing(5)
+        
+        # 名称标签
+        name_label = QLabel(self.extension.get('name', '未命名扩展'))
+        name_label.setStyleSheet("""
+            color: #333333;
+            font-size: 14px;
+            font-weight: 600;
+            background-color: transparent;
+        """)
+        info_layout.addWidget(name_label)
+        
+        # 发布者信息
+        publisher_layout = QHBoxLayout()
+        publisher_layout.setContentsMargins(0, 0, 0, 0)
+        publisher_layout.setSpacing(5)
+        
+        # 验证发布者图标
+        verified_icon = QLabel()
+        verified_icon.setFixedSize(16, 16)
+        verified_icon.setStyleSheet("""
+            background-color: transparent;
+            border-radius: 8px;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4285F4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>');
+            background-repeat: no-repeat;
+            background-position: center;
+        """)
+        
+        # 发布者网址
+        publisher_label = QLabel(self.extension.get('publisher', 'chrome.google.com'))
+        publisher_label.setStyleSheet("""
+            color: #666666;
+            font-size: 12px;
+            background-color: transparent;
+        """)
+        
+        publisher_layout.addWidget(verified_icon)
+        publisher_layout.addWidget(publisher_label)
+        publisher_layout.addStretch()
+        
+        info_layout.addLayout(publisher_layout)
+        
+        # 评分信息
+        rating_layout = QHBoxLayout()
+        rating_layout.setContentsMargins(0, 0, 0, 0)
+        rating_layout.setSpacing(5)
+        
+        # 星级评分
+        rating_value = self.extension.get('rating', 4.5)  # 默认4.5星
+        rating_label = QLabel(f"{rating_value}")
+        rating_label.setStyleSheet("""
+            color: #333333;
+            font-size: 12px;
+            background-color: transparent;
+        """)
+        
+        # 星星图标
+        star_icon = QLabel()
+        star_icon.setFixedSize(16, 16)
+        star_icon.setStyleSheet("""
+            background-color: transparent;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="#FFC107" stroke="#FFC107" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>');
+            background-repeat: no-repeat;
+            background-position: center;
+        """)
+        
+        # 评分数量
+        rating_count = self.extension.get('rating_count', 100)  # 默认100个评分
+        count_label = QLabel(f"({rating_count})")
+        count_label.setStyleSheet("""
+            color: #666666;
+            font-size: 12px;
+            background-color: transparent;
+        """)
+        
+        rating_layout.addWidget(rating_label)
+        rating_layout.addWidget(star_icon)
+        rating_layout.addWidget(count_label)
+        rating_layout.addStretch()
+        
+        info_layout.addLayout(rating_layout)
+        
+        # 描述标签
+        desc = self.extension.get('description', '')
+        if len(desc) > 100:
+            desc = desc[:100] + '...'
+        
+        desc_label = QLabel(desc)
+        desc_label.setWordWrap(True)
+        desc_label.setStyleSheet("""
+            color: #666666;
+            font-size: 12px;
+            background-color: transparent;
+            margin-top: 5px;
+        """)
+        info_layout.addWidget(desc_label)
+        
+        # 添加弹性空间
+        info_layout.addStretch()
+        
+        layout.addLayout(info_layout, 1)  # 设置伸缩因子为1，使其占据更多空间
+        
+        # 右侧按钮区域
+        button_layout = QVBoxLayout()
+        button_layout.setContentsMargins(0, 0, 0, 0)
+        button_layout.setSpacing(5)
+        button_layout.addStretch()
+        
+        # 添加/已安装按钮
+        if self.is_installed:
+            status_label = QLabel("已安装")
+            status_label.setFixedHeight(32)
+            status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            status_label.setStyleSheet("""
+                color: #4CAF50;
+                font-size: 13px;
+                font-weight: 500;
+                background-color: transparent;
+                border: 1px solid #4CAF50;
+                border-radius: 16px;
+                padding: 0 12px;
+            """)
+            button_layout.addWidget(status_label)
+        else:
+            add_btn = ModernButton("添加", accent=True)
+            add_btn.setFixedHeight(32)
+            add_btn.clicked.connect(self._on_add_clicked)
+            button_layout.addWidget(add_btn)
+        
+        layout.addLayout(button_layout)
+        
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+    
+    def _on_add_clicked(self):
+        """添加按钮点击事件"""
+        if self.on_add and callable(self.on_add):
+            self.on_add(self.extension) 
