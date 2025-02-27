@@ -8,15 +8,16 @@ from PyQt6.QtWidgets import (
     QListWidget, QListWidgetItem, QFileDialog, QDialog, 
     QLineEdit, QTextEdit, QFormLayout, QMessageBox,
     QCheckBox, QScrollArea, QFrame, QGroupBox, QGridLayout, QWidget,
-    QProgressBar
+    QProgressBar, QProgressDialog, QGraphicsDropShadowEffect
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QSize
-from PyQt6.QtGui import QPixmap, QIcon, QFont
+from PyQt6.QtGui import QPixmap, QIcon, QFont, QColor
 
 from ..constants import PRIMARY_COLOR, TEXT_PRIMARY_COLOR, TEXT_SECONDARY_COLOR
 from .components import ModernButton, SectionTitle
 from .message import show_message
 from .cards import ChromeStoreSearchResultCard
+from ..async_workers import ExtensionSearchWorker, BatchInstallWorker
 
 class ExtensionCard(QFrame):
     """扩展卡片组件"""
@@ -407,6 +408,7 @@ class BatchInstallDialog(QDialog):
         # 扩展选择区域
         extensions_section = QGroupBox("选择要安装的扩展")
         extensions_section.setFlat(True)
+        extensions_section.setMaximumHeight(200)
         extensions_layout = QVBoxLayout(extensions_section)
         
         # 扩展全选
@@ -440,6 +442,7 @@ class BatchInstallDialog(QDialog):
         # 实例选择区域
         instances_section = QGroupBox("选择目标浏览器实例")
         instances_section.setFlat(True)
+        instances_section.setMaximumHeight(150)
         instances_layout = QVBoxLayout(instances_section)
         
         # 实例全选
@@ -525,31 +528,112 @@ class ExtensionsPage(QWidget):
     """扩展管理页面"""
     
     def __init__(self, parent=None, extension_manager=None, config_manager=None):
+        """
+        初始化扩展管理页面
+        
+        Args:
+            parent: 父组件
+            extension_manager: 扩展管理器实例
+            config_manager: 配置管理器实例
+        """
         super().__init__(parent)
         self.extension_manager = extension_manager
         self.config_manager = config_manager
+        self.search_worker = None  # 搜索工作线程
+        self.batch_install_worker = None  # 批量安装工作线程
+        self.progress_dialog = None  # 进度对话框
+        
         self.setup_ui()
+        self.load_extensions()
     
     def setup_ui(self):
         """初始化UI"""
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setContentsMargins(30, 30, 30, 30)  # 增加内边距
+        layout.setSpacing(20)  # 增加间距
         
         # 标题
-        title = SectionTitle("扩展插件管理")
+        title = QLabel("扩展插件管理")
+        title.setFont(QFont("Microsoft YaHei UI", 24, QFont.Weight.Bold))
+        title.setStyleSheet("color: #202124; margin-bottom: 10px;")
         layout.addWidget(title)
         
         # 操作区域
         actions_layout = QHBoxLayout()
+        actions_layout.setSpacing(12)
         
-        self.add_ext_btn = ModernButton("添加新扩展", accent=True)
+        # 添加新扩展按钮
+        self.add_ext_btn = QPushButton("添加新扩展")
+        self.add_ext_btn.setFixedSize(140, 40)
+        self.add_ext_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.add_ext_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #1A73E8;
+                color: white;
+                border: none;
+                border-radius: 20px;
+                padding: 8px 16px;
+                font-size: 14px;
+                font-weight: bold;
+                font-family: 'Microsoft YaHei UI', sans-serif;
+            }
+            QPushButton:hover {
+                background-color: #1765CC;
+            }
+            QPushButton:pressed {
+                background-color: #185ABC;
+            }
+        """)
         self.add_ext_btn.clicked.connect(self.add_extension)
         
-        self.batch_install_btn = ModernButton("批量安装", accent=False)
+        # 批量安装按钮
+        self.batch_install_btn = QPushButton("批量安装")
+        self.batch_install_btn.setFixedSize(120, 40)
+        self.batch_install_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.batch_install_btn.setStyleSheet("""
+            QPushButton {
+                background-color: white;
+                color: #5F6368;
+                border: 1px solid #DADCE0;
+                border-radius: 20px;
+                padding: 8px 16px;
+                font-size: 14px;
+                font-family: 'Microsoft YaHei UI', sans-serif;
+            }
+            QPushButton:hover {
+                background-color: #F8F9FA;
+                color: #202124;
+                border-color: #D2E3FC;
+            }
+            QPushButton:pressed {
+                background-color: #F1F3F4;
+            }
+        """)
         self.batch_install_btn.clicked.connect(self.batch_install)
         
         # 添加刷新按钮
-        self.refresh_btn = ModernButton("刷新列表", accent=False)
+        self.refresh_btn = QPushButton("刷新列表")
+        self.refresh_btn.setFixedSize(120, 40)
+        self.refresh_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.refresh_btn.setStyleSheet("""
+            QPushButton {
+                background-color: white;
+                color: #5F6368;
+                border: 1px solid #DADCE0;
+                border-radius: 20px;
+                padding: 8px 16px;
+                font-size: 14px;
+                font-family: 'Microsoft YaHei UI', sans-serif;
+            }
+            QPushButton:hover {
+                background-color: #F8F9FA;
+                color: #202124;
+                border-color: #D2E3FC;
+            }
+            QPushButton:pressed {
+                background-color: #F1F3F4;
+            }
+        """)
         self.refresh_btn.clicked.connect(self.load_extensions)
         
         actions_layout.addWidget(self.add_ext_btn)
@@ -561,25 +645,51 @@ class ExtensionsPage(QWidget):
         
         # 添加搜索功能
         search_layout = QHBoxLayout()
+        search_layout.setSpacing(12)
+        
         search_label = QLabel("搜索Chrome商店:")
-        search_label.setStyleSheet(f"color: {TEXT_PRIMARY_COLOR}; font-size: 13px;")
+        search_label.setStyleSheet("color: #5F6368; font-size: 14px; font-family: 'Microsoft YaHei UI', sans-serif;")
         
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("输入关键词搜索扩展插件")
-        self.search_input.setMinimumWidth(300)
+        self.search_input.setMinimumWidth(350)
+        self.search_input.setFixedHeight(40)
         self.search_input.setStyleSheet("""
             QLineEdit {
-                border: 1px solid #E0E0E0;
-                border-radius: 4px;
-                padding: 6px 10px;
+                border: 1px solid #DADCE0;
+                border-radius: 20px;
+                padding: 8px 16px;
                 background-color: white;
+                font-size: 14px;
+                font-family: 'Microsoft YaHei UI', sans-serif;
             }
             QLineEdit:focus {
-                border: 1px solid #4285F4;
+                border: 1px solid #1A73E8;
+                background-color: rgba(232, 240, 254, 0.4);
             }
         """)
         
-        self.search_btn = ModernButton("搜索", accent=True)
+        self.search_btn = QPushButton("搜索")
+        self.search_btn.setFixedSize(100, 40)
+        self.search_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.search_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #1A73E8;
+                color: white;
+                border: none;
+                border-radius: 20px;
+                padding: 8px 16px;
+                font-size: 14px;
+                font-weight: bold;
+                font-family: 'Microsoft YaHei UI', sans-serif;
+            }
+            QPushButton:hover {
+                background-color: #1765CC;
+            }
+            QPushButton:pressed {
+                background-color: #185ABC;
+            }
+        """)
         self.search_btn.clicked.connect(self.search_extensions)
         
         search_layout.addWidget(search_label)
@@ -591,31 +701,23 @@ class ExtensionsPage(QWidget):
         
         # 说明文本
         help_text = QLabel('提示: 点击"安装"按钮将在浏览器中打开Chrome商店页面，请在页面中点击"添加至Chrome"按钮完成扩展安装。安装成功后，请点击"刷新列表"更新状态。如果安装失败，请检查网络连接或尝试手动安装。')
-        help_text.setStyleSheet(f"color: {TEXT_SECONDARY_COLOR}; font-size: 12px; background-color: #F5F5F5; padding: 8px; border-radius: 4px;")
+        help_text.setStyleSheet("""
+            color: #5F6368; 
+            font-size: 13px; 
+            font-family: 'Microsoft YaHei UI', sans-serif;
+            background-color: rgba(241, 243, 244, 0.8); 
+            padding: 12px; 
+            border-radius: 8px;
+            line-height: 1.4;
+        """)
         help_text.setWordWrap(True)
         layout.addWidget(help_text)
-        layout.addSpacing(10)
+        layout.addSpacing(16)
         
-        # 搜索结果区域
-        search_results_layout = QVBoxLayout()
-        search_results_layout.setContentsMargins(0, 0, 0, 0)
-        search_results_layout.setSpacing(16)
-        
-        # 搜索结果标题
-        self.search_results_title = QLabel("搜索结果")
-        self.search_results_title.setStyleSheet("""
-            font-size: 16px;
-            font-weight: bold;
-            color: #333333;
-            margin-top: 16px;
-        """)
-        self.search_results_title.setVisible(False)
-        search_results_layout.addWidget(self.search_results_title)
-        
-        # 搜索结果滚动区域
-        self.search_results_scroll = QScrollArea()
-        self.search_results_scroll.setWidgetResizable(True)
-        self.search_results_scroll.setStyleSheet("""
+        # 创建主滚动区域，包含所有内容
+        main_scroll_area = QScrollArea()
+        main_scroll_area.setWidgetResizable(True)
+        main_scroll_area.setStyleSheet("""
             QScrollArea {
                 border: none;
                 background-color: transparent;
@@ -625,9 +727,12 @@ class ExtensionsPage(QWidget):
                 background: transparent;
             }
             QScrollBar::handle:vertical {
-                background: #CCCCCC;
+                background: rgba(0, 0, 0, 0.2);
                 border-radius: 4px;
                 min-height: 20px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: rgba(0, 0, 0, 0.3);
             }
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
                 height: 0px;
@@ -637,66 +742,83 @@ class ExtensionsPage(QWidget):
             }
         """)
         
-        # 搜索结果内容区域
-        search_results_widget = QWidget()
-        search_results_widget.setStyleSheet("background-color: transparent;")
+        # 创建一个容器包含搜索结果和扩展库
+        main_content_widget = QWidget()
+        main_content_layout = QVBoxLayout(main_content_widget)
+        main_content_layout.setContentsMargins(0, 0, 0, 0)
+        main_content_layout.setSpacing(30)  # 各区域之间的间距
         
-        # 使用垂直布局替代网格布局
+        # 搜索结果区域
+        self.search_results_container = QWidget()
+        self.search_results_container.setVisible(False)  # 初始隐藏
+        search_results_layout = QVBoxLayout(self.search_results_container)
+        search_results_layout.setContentsMargins(0, 0, 20, 0)  # 添加右侧边距，为滚动条留出空间
+        search_results_layout.setSpacing(16)
+        
+        # 搜索结果标题和数量
+        title_container = QWidget()
+        title_layout = QHBoxLayout(title_container)
+        title_layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.search_results_title = QLabel("搜索结果")
+        self.search_results_title.setStyleSheet("""
+            font-size: 16px;
+            font-weight: 500;
+            color: #202124;
+        """)
+        title_layout.addWidget(self.search_results_title)
+        title_layout.addStretch()
+        
+        search_results_layout.addWidget(title_container)
+        
+        # 添加分隔线
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.HLine)
+        separator.setStyleSheet("background-color: #EEEEEE;")
+        separator.setFixedHeight(1)
+        search_results_layout.addWidget(separator)
+        
+        # 搜索结果内容区域
         self.search_results_grid = QVBoxLayout()
-        self.search_results_grid.setSpacing(16)
-        self.search_results_grid.setContentsMargins(0, 10, 0, 0)
+        self.search_results_grid.setSpacing(0)  # 移除卡片之间的间距，因为我们使用分隔线
+        self.search_results_grid.setContentsMargins(0, 0, 0, 0)
         self.search_results_grid.setAlignment(Qt.AlignmentFlag.AlignTop)
         
-        search_results_widget.setLayout(self.search_results_grid)
-        self.search_results_scroll.setWidget(search_results_widget)
-        self.search_results_scroll.setVisible(False)
+        # 使用一个容器包含搜索结果
+        search_results_content = QWidget()
+        search_results_content.setLayout(self.search_results_grid)
+        search_results_layout.addWidget(search_results_content)
         
-        search_results_layout.addWidget(self.search_results_scroll)
-        layout.addLayout(search_results_layout)
+        # 将搜索结果容器添加到主内容区域
+        main_content_layout.addWidget(self.search_results_container)
         
         # 扩展库区域
+        self.extensions_container = QWidget()
+        extensions_layout = QVBoxLayout(self.extensions_container)
+        extensions_layout.setContentsMargins(0, 0, 0, 0)
+        extensions_layout.setSpacing(16)
+        
+        # 扩展库标题
         extensions_title = QLabel("扩展库")
-        extensions_title.setStyleSheet("font-weight: bold; font-size: 14px; margin-top: 10px;")
-        layout.addWidget(extensions_title)
+        extensions_title.setStyleSheet("font-weight: bold; font-size: 20px; color: #202124; font-family: 'Microsoft YaHei UI', sans-serif;")
+        extensions_layout.addWidget(extensions_title)
         
         # 创建网格布局用于显示扩展卡片
         self.grid_layout = QGridLayout()
-        self.grid_layout.setSpacing(16)  # 设置卡片间距
-        self.grid_layout.setContentsMargins(0, 10, 0, 0)
+        self.grid_layout.setSpacing(24)  # 增加卡片间距
+        self.grid_layout.setContentsMargins(0, 16, 0, 0)
         
-        # 创建滚动区域
-        scroll_widget = QWidget()
-        scroll_widget.setLayout(self.grid_layout)
+        # 使用一个容器包含扩展卡片网格
+        grid_container = QWidget()
+        grid_container.setLayout(self.grid_layout)
+        extensions_layout.addWidget(grid_container)
         
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setWidget(scroll_widget)
-        scroll_area.setStyleSheet("""
-            QScrollArea {
-                background-color: transparent; 
-                border: none;
-            }
-            QScrollBar:vertical {
-                width: 8px;
-                background: transparent;
-            }
-            QScrollBar::handle:vertical {
-                background: #CCCCCC;
-                border-radius: 4px;
-                min-height: 20px;
-            }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-                height: 0px;
-            }
-            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
-                background: transparent;
-            }
-        """)
+        # 将扩展库容器添加到主内容区域
+        main_content_layout.addWidget(self.extensions_container)
         
-        layout.addWidget(scroll_area, 1)  # 给予滚动区域伸缩空间
-        
-        # 加载扩展
-        self.load_extensions()
+        # 将主内容区域设为可滚动
+        main_scroll_area.setWidget(main_content_widget)
+        layout.addWidget(main_scroll_area, 1)  # 给予滚动区域伸缩空间
     
     def load_extensions(self):
         """加载扩展列表"""
@@ -823,36 +945,306 @@ class ExtensionsPage(QWidget):
             selected_extensions = selected_data['extensions']
             selected_instances = selected_data['instances']
             
-            # 执行批量安装
-            all_results = {}
-            for ext_id in selected_extensions:
-                results = self.extension_manager.install_extension_to_instances(ext_id, selected_instances)
-                all_results[ext_id] = results
+            # 创建进度对话框
+            self.progress_dialog = QProgressDialog("正在准备批量安装...", "取消", 0, 0, self)
+            self.progress_dialog.setWindowTitle("批量安装扩展")
+            self.progress_dialog.setWindowModality(Qt.WindowModality.WindowModal)
+            self.progress_dialog.setMinimumWidth(400)
+            self.progress_dialog.setAutoClose(False)
+            self.progress_dialog.setAutoReset(False)
             
-            # 显示结果
-            total_operations = len(selected_extensions) * len(selected_instances)
-            success_count = sum(
-                1 for ext_results in all_results.values() 
-                for success, _ in ext_results.values() 
-                if success
+            # 创建并启动批量安装工作线程
+            self.batch_install_worker = BatchInstallWorker(
+                self.extension_manager, selected_extensions, selected_instances
             )
+            self.batch_install_worker.progress.connect(self._update_batch_install_progress)
+            self.batch_install_worker.finished.connect(self._handle_batch_install_results)
+            self.batch_install_worker.error.connect(self._handle_batch_install_error)
             
-            result_message = f"批量安装完成: {success_count}/{total_operations} 个操作成功\n\n"
+            # 连接取消按钮
+            self.progress_dialog.canceled.connect(self._cancel_batch_install)
             
-            # 详细结果太长，只显示摘要
-            if len(selected_extensions) > 3:
-                result_message += "已启动多个Chrome实例执行安装，请在各实例中确认安装结果"
-            else:
-                for ext_id in selected_extensions:
-                    ext = self.extension_manager.get_extension(ext_id)
-                    ext_name = ext.get('name', ext_id) if ext else ext_id
+            # 启动批量安装
+            self.batch_install_worker.start()
+            self.progress_dialog.show()
+    
+    def _update_batch_install_progress(self, message):
+        """更新批量安装进度"""
+        if self.progress_dialog:
+            self.progress_dialog.setLabelText(message)
+    
+    def _handle_batch_install_results(self, all_results):
+        """处理批量安装结果"""
+        # 关闭进度对话框
+        if self.progress_dialog:
+            self.progress_dialog.close()
+            self.progress_dialog = None
+        
+        # 清理工作线程
+        self.batch_install_worker = None
+        
+        # 显示结果
+        if not all_results:
+            show_message("批量安装", "没有执行任何安装操作", QMessageBox.Icon.Information)
+            return
+        
+        # 计算成功数量
+        total_operations = sum(len(results) for results in all_results.values())
+        success_count = sum(
+            1 for ext_results in all_results.values() 
+            for success, _ in ext_results.values() 
+            if success
+        )
+        
+        result_message = f"批量安装完成: {success_count}/{total_operations} 个操作成功\n\n"
+        
+        # 详细结果太长，只显示摘要
+        if len(all_results) > 3:
+            result_message += "已启动多个Chrome实例执行安装，请在各实例中确认安装结果"
+        else:
+            for ext_id, results in all_results.items():
+                ext = self.extension_manager.get_extension(ext_id)
+                ext_name = ext.get('name', ext_id) if ext else ext_id
+                
+                result_message += f"\n{ext_name}:\n"
+                for instance, (success, msg) in results.items():
+                    status = "✓" if success else "✗"
+                    result_message += f"  {status} {instance}: {msg}\n"
+        
+        show_message("批量安装结果", result_message, QMessageBox.Icon.Information)
+    
+    def _handle_batch_install_error(self, error_message):
+        """处理批量安装错误"""
+        # 关闭进度对话框
+        if self.progress_dialog:
+            self.progress_dialog.close()
+            self.progress_dialog = None
+        
+        # 显示错误消息
+        show_message("批量安装错误", error_message, QMessageBox.Icon.Critical)
+    
+    def _cancel_batch_install(self):
+        """取消批量安装"""
+        if self.batch_install_worker and self.batch_install_worker.isRunning():
+            self.batch_install_worker.terminate()
+            self.batch_install_worker = None
+        
+        # 关闭进度对话框
+        if self.progress_dialog:
+            self.progress_dialog.close()
+            self.progress_dialog = None
+    
+    def display_search_results(self, results):
+        """显示搜索结果"""
+        # 清空现有内容
+        self.clear_search_results()
+        
+        # 显示搜索结果区域
+        self.search_results_container.setVisible(True)
+        
+        if not results:
+            # 创建空状态显示
+            empty_container = QFrame()
+            empty_container.setStyleSheet("background-color: #F5F5F5; border-radius: 8px; padding: 20px;")
+            empty_layout = QVBoxLayout(empty_container)
+            
+            empty_label = QLabel("没有找到匹配的扩展")
+            empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            empty_label.setStyleSheet("color: #666; font-size: 14px; padding: 24px;")
+            empty_layout.addWidget(empty_label)
+            
+            self.search_results_grid.addWidget(empty_container)
+            return
+        
+        # 检查是否有手动提示
+        has_manual_prompt = any(ext.get('is_manual_prompt', False) for ext in results)
+        if has_manual_prompt:
+            # 显示手动提示
+            for ext in results:
+                if ext.get('is_manual_prompt', False):
+                    prompt_container = QFrame()
+                    prompt_container.setStyleSheet("background-color: #E8F0FE; border-radius: 8px; padding: 16px;")
+                    prompt_layout = QVBoxLayout(prompt_container)
                     
-                    result_message += f"\n{ext_name}:\n"
-                    for instance, (success, msg) in all_results[ext_id].items():
-                        status = "✓" if success else "✗"
-                        result_message += f"  {status} {instance}: {msg}\n"
-            
-            show_message("批量安装结果", result_message, QMessageBox.Icon.Information)
+                    prompt_label = QLabel(ext.get('description', '已在浏览器中打开Chrome商店，请手动选择并安装扩展。'))
+                    prompt_label.setWordWrap(True)
+                    prompt_label.setStyleSheet("""
+                        color: #1A73E8;
+                        font-size: 14px;
+                    """)
+                    prompt_layout.addWidget(prompt_label)
+                    
+                    self.search_results_grid.addWidget(prompt_container)
+            return
+        
+        # 检查已安装的扩展
+        installed_ids = [ext.get('id') for ext in self.extension_manager.extensions_library]
+        
+        # 添加搜索结果数量提示
+        result_container = QFrame()
+        result_container.setStyleSheet("background-color: #F8F9FA; border-radius: 8px; margin-bottom: 8px;")
+        result_layout = QHBoxLayout(result_container)
+        result_layout.setContentsMargins(16, 10, 16, 10)
+        
+        result_count_label = QLabel(f"找到 {len(results)} 个扩展")
+        result_count_label.setStyleSheet("""
+            color: #5F6368;
+            font-size: 14px;
+            font-weight: 500;
+        """)
+        result_layout.addWidget(result_count_label)
+        
+        self.search_results_grid.addWidget(result_container)
+        
+        # 添加搜索结果卡片
+        for extension in results:
+            try:
+                # 检查是否已安装
+                is_installed = extension.get('id') in installed_ids
+                
+                # 使用搜索结果卡片组件
+                card = ChromeStoreSearchResultCard(
+                    extension, 
+                    on_add=self.add_search_result,
+                    is_installed=is_installed
+                )
+                # 添加分隔线
+                if self.search_results_grid.count() > 0:  # 如果不是第一个卡片
+                    separator = QFrame()
+                    separator.setFrameShape(QFrame.Shape.HLine)
+                    separator.setStyleSheet("background-color: #EEEEEE;")
+                    separator.setFixedHeight(1)
+                    self.search_results_grid.addWidget(separator)
+                
+                self.search_results_grid.addWidget(card)
+            except Exception as e:
+                # 如果创建卡片失败，显示错误信息及扩展详情
+                error_msg = f"显示卡片错误: {str(e)}"
+                print(error_msg)
+                print(f"扩展数据: {extension}")
+                
+                # 创建一个简单的错误卡片
+                error_frame = QFrame()
+                error_frame.setStyleSheet("background-color: #FEF7F7; padding: 12px;")
+                error_layout = QVBoxLayout(error_frame)
+                error_layout.setContentsMargins(16, 12, 16, 12)
+                
+                error_label = QLabel(f"无法显示扩展: {extension.get('name', '未知扩展')}")
+                error_label.setStyleSheet("color: #D93025; font-size: 14px; font-weight: 500;")
+                error_layout.addWidget(error_label)
+                
+                # 添加尝试再次添加的按钮
+                retry_btn = QPushButton("尝试添加")
+                retry_btn.setFixedSize(80, 32)
+                retry_btn.setStyleSheet("""
+                    background-color: #F1F3F4; 
+                    border: none; 
+                    border-radius: 4px; 
+                    padding: 6px 12px;
+                    margin-top: 8px;
+                """)
+                retry_btn.clicked.connect(lambda checked, ext=extension: self.add_search_result(ext))
+                error_layout.addWidget(retry_btn, 0, Qt.AlignmentFlag.AlignLeft)
+                
+                self.search_results_grid.addWidget(error_frame)
+        
+        # 更新布局
+        self.search_results_grid.update()
+    
+    def clear_search_results(self):
+        """清空搜索结果"""
+        # 清空现有内容
+        for i in reversed(range(self.search_results_grid.count())):
+            widget = self.search_results_grid.itemAt(i).widget()
+            if widget:
+                widget.deleteLater()
+        
+        # 隐藏搜索结果容器
+        self.search_results_container.setVisible(False)
+    
+    def search_extensions(self):
+        """搜索扩展"""
+        keyword = self.search_input.text().strip()
+        if not keyword:
+            show_message("搜索提示", "请输入搜索关键词", QMessageBox.Icon.Information)
+            return
+        
+        # 清空之前的搜索结果
+        self.clear_search_results()
+        
+        # 显示搜索结果区域，并添加加载中提示
+        self.search_results_container.setVisible(True)
+        
+        loading_frame = QFrame()
+        loading_frame.setStyleSheet("background-color: #F8F9FA; border-radius: 8px; padding: 20px;")
+        loading_layout = QVBoxLayout(loading_frame)
+        
+        loading_label = QLabel(f"正在搜索 \"{keyword}\"...")
+        loading_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        loading_label.setStyleSheet("color: #5F6368; font-size: 14px;")
+        loading_layout.addWidget(loading_label)
+        
+        self.search_results_grid.addWidget(loading_frame)
+        
+        # 创建进度对话框
+        self.progress_dialog = QProgressDialog("正在搜索扩展...", "取消", 0, 0, self)
+        self.progress_dialog.setWindowTitle("搜索扩展")
+        self.progress_dialog.setWindowModality(Qt.WindowModality.WindowModal)
+        self.progress_dialog.setMinimumWidth(400)
+        self.progress_dialog.setAutoClose(False)
+        self.progress_dialog.setAutoReset(False)
+        
+        # 创建并启动搜索工作线程
+        self.search_worker = ExtensionSearchWorker(self.extension_manager, keyword)
+        self.search_worker.progress.connect(self._update_search_progress)
+        self.search_worker.finished.connect(self._handle_search_results)
+        self.search_worker.error.connect(self._handle_search_error)
+        
+        # 连接取消按钮
+        self.progress_dialog.canceled.connect(self._cancel_search)
+        
+        # 启动搜索
+        self.search_worker.start()
+        self.progress_dialog.show()
+    
+    def _update_search_progress(self, message):
+        """更新搜索进度"""
+        if self.progress_dialog:
+            self.progress_dialog.setLabelText(message)
+    
+    def _handle_search_results(self, results):
+        """处理搜索结果"""
+        # 关闭进度对话框
+        if self.progress_dialog:
+            self.progress_dialog.close()
+            self.progress_dialog = None
+        
+        # 清理工作线程
+        self.search_worker = None
+        
+        # 显示搜索结果
+        self.display_search_results(results)
+    
+    def _handle_search_error(self, error_message):
+        """处理搜索错误"""
+        # 关闭进度对话框
+        if self.progress_dialog:
+            self.progress_dialog.close()
+            self.progress_dialog = None
+        
+        # 显示错误消息
+        show_message("搜索错误", error_message, QMessageBox.Icon.Critical)
+    
+    def _cancel_search(self):
+        """取消搜索"""
+        if self.search_worker and self.search_worker.isRunning():
+            self.search_worker.terminate()
+            self.search_worker = None
+        
+        # 关闭进度对话框
+        if self.progress_dialog:
+            self.progress_dialog.close()
+            self.progress_dialog = None
     
     def resizeEvent(self, event):
         """窗口大小变化事件"""
@@ -860,60 +1252,6 @@ class ExtensionsPage(QWidget):
         # 窗口大小变化时重新加载扩展卡片布局
         self.load_extensions() 
 
-    def search_extensions(self):
-        """搜索扩展"""
-        keyword = self.search_input.text().strip()
-        if not keyword:
-            show_message("错误", "请输入关键词进行搜索", QMessageBox.Icon.Warning)
-            return
-        
-        # 显示搜索中状态
-        self.search_results_title.setText("正在搜索...")
-        self.search_results_title.setVisible(True)
-        self.search_results_scroll.setVisible(False)
-        
-        # 清空现有内容
-        for i in reversed(range(self.search_results_grid.count())):
-            widget = self.search_results_grid.itemAt(i).widget()
-            if widget:
-                widget.deleteLater()
-        
-        # 获取搜索结果
-        results = self.extension_manager.search_extensions(keyword)
-        
-        # 更新标题
-        self.search_results_title.setText(f"搜索结果 - {keyword}")
-        self.search_results_title.setVisible(True)
-        
-        if not results:
-            # 创建空状态显示
-            empty_label = QLabel("没有找到匹配的扩展")
-            empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            empty_label.setStyleSheet("color: #888; font-size: 14px; padding: 20px;")
-            self.search_results_grid.addWidget(empty_label)
-            self.search_results_scroll.setVisible(True)
-            return
-        
-        # 检查已安装的扩展
-        installed_ids = [ext.get('id') for ext in self.extension_manager.extensions_library]
-        
-        # 使用列表布局替代网格布局
-        for i, result in enumerate(results):
-            # 检查是否已安装
-            is_installed = result.get('id') in installed_ids
-            
-            # 使用新的卡片组件
-            card = ChromeStoreSearchResultCard(
-                result, 
-                on_add=self.add_search_result,
-                is_installed=is_installed
-            )
-            self.search_results_grid.addWidget(card)
-        
-        # 更新布局
-        self.search_results_grid.update()
-        self.search_results_scroll.setVisible(True)
-    
     def add_search_result(self, extension):
         """添加搜索结果到扩展库"""
         # 调用扩展管理器添加扩展

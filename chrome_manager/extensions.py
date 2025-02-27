@@ -59,33 +59,97 @@ class ExtensionManager:
             if ext.get('id') == ext_id:
                 return False, "该扩展已存在于库中"
         
+        # 创建扩展专用目录
+        ext_dir = os.path.join(self.extensions_dir, ext_id)
+        try:
+            os.makedirs(ext_dir, exist_ok=True)
+        except Exception as e:
+            return False, f"创建扩展目录失败: {str(e)}"
+        
         # 如果有CRX文件，复制到扩展目录
         local_crx_path = None
         if crx_path and os.path.exists(crx_path):
-            # 创建扩展专用目录
-            ext_dir = os.path.join(self.extensions_dir, ext_id)
-            os.makedirs(ext_dir, exist_ok=True)
-            
-            # 复制CRX文件
             file_name = os.path.basename(crx_path)
             local_crx_path = os.path.join(ext_dir, file_name)
             try:
+                import shutil
                 shutil.copy2(crx_path, local_crx_path)
             except Exception as e:
                 return False, f"复制CRX文件失败: {str(e)}"
         
         # 保存图标
         local_icon_path = None
-        if icon_path and os.path.exists(icon_path):
-            ext_dir = os.path.join(self.extensions_dir, ext_id)
-            os.makedirs(ext_dir, exist_ok=True)
-            
-            icon_filename = os.path.basename(icon_path)
-            local_icon_path = os.path.join(ext_dir, icon_filename)
-            try:
-                shutil.copy2(icon_path, local_icon_path)
-            except Exception as e:
-                return False, f"复制图标文件失败: {str(e)}"
+        if icon_path:
+            # 首先检查图标文件是否存在
+            if not os.path.exists(icon_path):
+                print(f"警告: 图标文件不存在: {icon_path}")
+                # 不返回错误，继续添加扩展，但不设置图标
+            else:
+                icon_filename = f"{ext_id}_icon.png"
+                local_icon_path = os.path.join(ext_dir, icon_filename)
+                
+                # 添加重试机制
+                max_retries = 5  # 增加重试次数
+                retry_count = 0
+                
+                while retry_count < max_retries:
+                    try:
+                        # 先尝试清理旧文件
+                        try:
+                            if os.path.exists(local_icon_path):
+                                import time
+                                # 等待一小段时间，让其他进程释放文件
+                                time.sleep(0.5)  # 增加等待时间
+                                os.remove(local_icon_path)
+                                # 再等待一小段时间，确保文件被完全删除
+                                time.sleep(0.5)  # 增加等待时间
+                        except Exception as e:
+                            print(f"清理旧图标文件失败: {str(e)}")
+                            # 继续尝试复制，可能会覆盖
+                        
+                        # 复制新文件
+                        import shutil
+                        shutil.copy2(icon_path, local_icon_path)
+                        
+                        # 验证文件是否成功复制
+                        if os.path.exists(local_icon_path):
+                            print(f"成功复制图标文件到: {local_icon_path}")
+                            break
+                        else:
+                            raise Exception("文件复制后不存在")
+                            
+                    except FileNotFoundError:
+                        retry_count += 1
+                        print(f"图标文件不存在，重试 {retry_count}/{max_retries}")
+                        if retry_count == max_retries:
+                            print(f"无法找到图标文件: {icon_path}")
+                            # 不返回错误，继续添加扩展，但不设置图标
+                            local_icon_path = None
+                            break
+                        import time
+                        time.sleep(1)  # 增加等待时间
+                        
+                    except PermissionError:
+                        retry_count += 1
+                        print(f"文件访问被拒绝，重试 {retry_count}/{max_retries}")
+                        if retry_count == max_retries:
+                            print("复制图标文件失败: 文件访问被拒绝，请确保没有其他程序正在使用该文件")
+                            # 不返回错误，继续添加扩展，但不设置图标
+                            local_icon_path = None
+                            break
+                        import time
+                        time.sleep(2)  # 增加等待时间到2秒
+                        
+                    except Exception as e:
+                        retry_count += 1
+                        print(f"复制图标文件时出错: {str(e)}，重试 {retry_count}/{max_retries}")
+                        if retry_count == max_retries:
+                            print(f"复制图标文件失败: {str(e)}")
+                            # 不返回错误，继续添加扩展，但不设置图标
+                            local_icon_path = None
+                            break
+                        import time
+                        time.sleep(2)  # 增加等待时间到2秒
         
         # 创建扩展对象
         extension = {
@@ -96,13 +160,28 @@ class ExtensionManager:
             "crx_path": local_crx_path
         }
         
-        # 添加到库中
-        self.extensions_library.append(extension)
-        
-        # 保存更新
-        self.save_extensions()
-        
-        return True, "扩展添加成功"
+        try:
+            # 先尝试保存配置
+            self.extensions_library.append(extension)
+            self.save_extensions()
+            return True, "扩展添加成功"
+        except Exception as e:
+            # 如果保存失败，清理已创建的文件
+            try:
+                if local_icon_path and os.path.exists(local_icon_path):
+                    os.remove(local_icon_path)
+                if local_crx_path and os.path.exists(local_crx_path):
+                    os.remove(local_crx_path)
+                if os.path.exists(ext_dir) and not os.listdir(ext_dir):
+                    os.rmdir(ext_dir)
+            except:
+                pass
+            
+            # 从库中移除
+            if extension in self.extensions_library:
+                self.extensions_library.remove(extension)
+            
+            return False, f"保存配置失败: {str(e)}"
     
     def remove_extension(self, ext_id):
         """
@@ -303,7 +382,9 @@ class ExtensionManager:
     
     def search_extensions(self, keyword):
         """
-        搜索Chrome商店中的扩展
+        搜索Chrome商店中的扩展 - 公共接口
+        
+        此方法是一个公共接口，可以同步调用或通过ExtensionSearchWorker异步调用
         
         Args:
             keyword: 搜索关键词
@@ -311,8 +392,28 @@ class ExtensionManager:
         Returns:
             list: 搜索结果列表
         """
+        # 直接调用实现方法
+        return self.search_extensions_impl(keyword)
+    
+    def search_extensions_impl(self, keyword, progress_callback=None):
+        """
+        搜索Chrome商店中的扩展 - 实现方法
+        
+        此方法包含实际的搜索逻辑，可以被search_extensions直接调用，
+        也可以被ExtensionSearchWorker在后台线程中调用
+        
+        Args:
+            keyword: 搜索关键词
+            progress_callback: 进度回调函数，用于报告进度
+            
+        Returns:
+            list: 搜索结果列表
+        """
         try:
-            print(f"使用Playwright搜索关键词: {keyword}")
+            if progress_callback:
+                progress_callback.emit(f"使用Playwright搜索关键词: {keyword}")
+            else:
+                print(f"使用Playwright搜索关键词: {keyword}")
             
             # 导入Playwright相关库
             from playwright.sync_api import sync_playwright
@@ -321,7 +422,11 @@ class ExtensionManager:
             # 使用Playwright
             with sync_playwright() as p:
                 # 启动浏览器（无头模式）
-                print("正在启动浏览器...")
+                if progress_callback:
+                    progress_callback.emit("正在启动浏览器...")
+                else:
+                    print("正在启动浏览器...")
+                    
                 browser = p.chromium.launch(headless=True)
                 
                 try:
@@ -334,28 +439,44 @@ class ExtensionManager:
                     })
                     
                     # 访问Chrome商店搜索页面 - 更新URL格式
-                    search_url = f"https://chromewebstore.google.com/search/{keyword}?hl=zh-CN&utm_source=ext_sidebar"
-                    print(f"访问URL: {search_url}")
+                    search_url = f"https://chromewebstore.google.com/search/{keyword}?hl=zh-CN"
+                    if progress_callback:
+                        progress_callback.emit(f"访问URL: {search_url}")
+                    else:
+                        print(f"访问URL: {search_url}")
+                        
                     page.goto(search_url)
                     
                     # 等待页面加载 - 增加等待时间
-                    print("等待页面加载...")
+                    if progress_callback:
+                        progress_callback.emit("等待页面加载...")
+                    else:
+                        print("等待页面加载...")
+                        
                     page.wait_for_load_state("networkidle")
                     
                     # 额外等待时间，确保动态内容加载完成
-                    print("额外等待2秒...")
-                    time.sleep(2)
+                    if progress_callback:
+                        progress_callback.emit("额外等待5秒...")
+                    else:
+                        print("额外等待5秒...")
+                        
+                    time.sleep(5)  # 增加等待时间
                     
                     # 等待扩展卡片元素出现
-                    print("等待扩展卡片元素出现...")
+                    if progress_callback:
+                        progress_callback.emit("等待扩展卡片元素出现...")
+                    else:
+                        print("等待扩展卡片元素出现...")
+                        
                     try:
                         # 尝试多种选择器
                         selectors = [
-                            "c-wiz div[role='article']",
-                            "div[role='main'] div[role='article']",
-                            "div[jscontroller] div[role='article']",
-                            "div.Xgn82e",  # 可能的类名
-                            "div.VfPpkd-WsjYwc"  # 可能的类名
+                            "div.QAB7uc div.Cb7Kte",  # 主选择器
+                            "div.Cb7Kte",             # 备用选择器1
+                            "div[role='main'] div[role='article']",  # 备用选择器2
+                            "c-wiz div[role='article']",  # 备用选择器3
+                            "div.R6nElb"              # 备用选择器4
                         ]
                         
                         extension_cards = None
@@ -363,96 +484,149 @@ class ExtensionManager:
                         
                         # 尝试每个选择器
                         for selector in selectors:
-                            print(f"尝试选择器: {selector}")
+                            if progress_callback:
+                                progress_callback.emit(f"尝试选择器: {selector}")
+                            else:
+                                print(f"尝试选择器: {selector}")
+                                
                             try:
                                 # 等待选择器出现
-                                page.wait_for_selector(selector, timeout=5000)
+                                page.wait_for_selector(selector, timeout=3000)
                                 # 获取元素
                                 cards = page.query_selector_all(selector)
                                 if cards and len(cards) > 0:
                                     extension_cards = cards
                                     used_selector = selector
-                                    print(f"成功使用选择器: {selector}, 找到 {len(cards)} 个元素")
+                                    if progress_callback:
+                                        progress_callback.emit(f"成功使用选择器: {selector}, 找到 {len(cards)} 个元素")
+                                    else:
+                                        print(f"成功使用选择器: {selector}, 找到 {len(cards)} 个元素")
                                     break
                             except Exception as selector_error:
-                                print(f"选择器 {selector} 失败: {str(selector_error)}")
+                                if progress_callback:
+                                    progress_callback.emit(f"选择器 {selector} 失败: {str(selector_error)}")
+                                else:
+                                    print(f"选择器 {selector} 失败: {str(selector_error)}")
                                 continue
                         
-                        # 如果所有选择器都失败，尝试截图和保存源码
-                        if not extension_cards:
-                            print("所有选择器都失败，保存调试信息...")
+                        if not extension_cards or len(extension_cards) == 0:
+                            if progress_callback:
+                                progress_callback.emit("未找到扩展卡片，尝试保存调试信息...")
+                            else:
+                                print("未找到扩展卡片，尝试保存调试信息...")
                             
                             # 保存页面源码
                             debug_file = os.path.join(os.path.dirname(self.config_manager.config_file), "chrome_store_page_source.html")
                             with open(debug_file, 'w', encoding='utf-8') as f:
                                 f.write(page.content())
-                            print(f"已保存页面源码到: {debug_file}")
+                            if progress_callback:
+                                progress_callback.emit(f"已保存页面源码到: {debug_file}")
+                            else:
+                                print(f"已保存页面源码到: {debug_file}")
                             
                             # 保存截图
                             screenshot_file = os.path.join(os.path.dirname(self.config_manager.config_file), "chrome_store_screenshot.png")
                             page.screenshot(path=screenshot_file)
-                            print(f"已保存页面截图到: {screenshot_file}")
+                            if progress_callback:
+                                progress_callback.emit(f"已保存页面截图到: {screenshot_file}")
+                            else:
+                                print(f"已保存页面截图到: {screenshot_file}")
                             
                             # 尝试直接打开浏览器
-                            print("无法爬取扩展信息，将直接打开Chrome商店")
+                            if progress_callback:
+                                progress_callback.emit("无法爬取扩展信息，将直接打开Chrome商店")
+                            else:
+                                print("无法爬取扩展信息，将直接打开Chrome商店")
                             return self._open_chrome_store_in_browser(keyword)
                         
-                        # 限制只处理前5个结果
-                        extension_cards = extension_cards[:5]
-                        print(f"找到 {len(extension_cards)} 个扩展卡片")
+                        # 限制只处理前8个结果
+                        extension_cards = extension_cards[:8]
+                        if progress_callback:
+                            progress_callback.emit(f"找到 {len(extension_cards)} 个扩展卡片")
+                        else:
+                            print(f"找到 {len(extension_cards)} 个扩展卡片")
                         
                         # 提取扩展信息
                         extensions = []
-                        for card in extension_cards:
+                        for i, card in enumerate(extension_cards):
+                            if progress_callback:
+                                progress_callback.emit(f"正在处理第 {i+1}/{len(extension_cards)} 个扩展...")
+                            
                             try:
-                                # 提取扩展ID
-                                link_element = card.query_selector("a[href*='/detail/']")
-                                if not link_element:
-                                    print("无法找到链接元素，尝试其他选择器")
-                                    link_element = card.query_selector("a")
-                                
-                                if link_element:
-                                    href = link_element.get_attribute("href")
-                                    if '/detail/' in href:
-                                        ext_id = href.split("/detail/")[1].split("?")[0]
-                                    else:
-                                        print(f"链接不包含detail部分: {href}")
+                                # 根据使用的选择器调整提取逻辑
+                                if used_selector == "div.QAB7uc div.Cb7Kte" or used_selector == "div.Cb7Kte":
+                                    # 提取扩展ID - 从data-item-id属性
+                                    ext_id = card.get_attribute("data-item-id")
+                                    if not ext_id:
+                                        print("无法获取扩展ID")
                                         continue
+                                    
+                                    # 提取链接
+                                    link_element = card.query_selector("a.q6LNgd")
+                                    href = link_element.get_attribute("href") if link_element else None
+                                    
+                                    # 提取扩展名称
+                                    name_element = card.query_selector("h2.CiI2if")
+                                    name = name_element.inner_text() if name_element else "未知扩展"
+                                    
+                                    # 提取描述
+                                    desc_element = card.query_selector("p.g3IrHd")
+                                    description = desc_element.inner_text() if desc_element else "无描述"
+                                    
+                                    # 提取发布者信息
+                                    publisher_element = card.query_selector("span.cJI8ee")
+                                    publisher = publisher_element.inner_text() if publisher_element else "未知发布者"
+                                    
+                                    # 提取评分
+                                    rating_element = card.query_selector("span.Vq0ZA")
+                                    rating = rating_element.inner_text() if rating_element else "0.0"
+                                    
+                                    # 提取评分数量
+                                    rating_count_element = card.query_selector("span.Y30PE")
+                                    rating_count = rating_count_element.inner_text() if rating_count_element else "(0)"
+                                    # 去除括号
+                                    rating_count = rating_count.strip("()")
                                 else:
-                                    print("无法找到任何链接元素")
-                                    continue
-                                
-                                # 提取扩展名称
-                                name_element = card.query_selector("h2")
-                                if not name_element:
-                                    print("无法找到名称元素，尝试其他选择器")
-                                    name_element = card.query_selector("div[role='heading']")
-                                
-                                name = name_element.inner_text() if name_element else "未知扩展"
-                                
-                                # 提取扩展描述
-                                try:
+                                    # 备用提取逻辑 - 适用于其他选择器
+                                    # 提取链接和ID
+                                    link_element = card.query_selector("a[href*='/detail/']")
+                                    if not link_element:
+                                        link_element = card.query_selector("a")
+                                    
+                                    ext_id = None
+                                    href = None
+                                    if link_element:
+                                        href = link_element.get_attribute("href")
+                                        if href and '/detail/' in href:
+                                            ext_id = href.split("/detail/")[1].split("?")[0]
+                                    
+                                    if not ext_id:
+                                        print("无法获取扩展ID")
+                                        continue
+                                    
+                                    # 提取名称
+                                    name_element = card.query_selector("h2") or card.query_selector("div[role='heading']")
+                                    name = name_element.inner_text() if name_element else "未知扩展"
+                                    
+                                    # 提取描述
                                     desc_selectors = [
-                                        "div[role='article'] > div > div:nth-child(2) > div:nth-child(2)",
-                                        "div[role='article'] div[jsname]",
-                                        "div[role='article'] div:nth-child(2)"
+                                        "div[role='article'] > div > div:nth-child(2)",
+                                        "div[role='article'] div:nth-child(2)",
+                                        "p"
                                     ]
                                     
-                                    description = "暂无描述"
+                                    description = "无描述"
                                     for desc_selector in desc_selectors:
                                         desc_element = card.query_selector(desc_selector)
                                         if desc_element:
-                                            description = desc_element.inner_text()
-                                            if description and len(description) > 5:  # 确保描述有意义
+                                            text = desc_element.inner_text()
+                                            if text and len(text) > 5:
+                                                description = text
                                                 break
-                                except:
-                                    description = "暂无描述"
-                                
-                                # 提取发布者信息
-                                try:
+                                    
+                                    # 提取发布者
                                     publisher_selectors = [
-                                        "div[role='article'] > div > div:nth-child(2) > div:nth-child(1) > div:nth-child(2)",
-                                        "div[role='article'] div[jsname]:nth-child(1)",
+                                        "span",
                                         "div[role='article'] span"
                                     ]
                                     
@@ -460,54 +634,44 @@ class ExtensionManager:
                                     for pub_selector in publisher_selectors:
                                         pub_element = card.query_selector(pub_selector)
                                         if pub_element:
-                                            publisher = pub_element.inner_text()
-                                            if publisher and len(publisher) > 2:  # 确保发布者有意义
+                                            text = pub_element.inner_text()
+                                            if text and len(text) > 2:
+                                                publisher = text
                                                 break
-                                except:
-                                    publisher = "未知发布者"
-                                
-                                # 提取评分信息
-                                try:
+                                    
+                                    # 提取评分
                                     rating_selectors = [
-                                        "div[aria-label*='评分']",
-                                        "div[aria-label*='rating']",
-                                        "div[jsname] div[aria-label]"
+                                        "div[aria-label*='星']",
+                                        "div[aria-label*='rating']"
                                     ]
                                     
-                                    rating_value = 0
-                                    rating_count = 0
-                                    
+                                    rating = "0.0"
                                     for rating_selector in rating_selectors:
                                         rating_element = card.query_selector(rating_selector)
                                         if rating_element:
                                             rating_text = rating_element.get_attribute("aria-label")
                                             if rating_text:
-                                                if "评分：" in rating_text:
-                                                    rating_value = float(rating_text.split("评分：")[1].split("（共")[0].strip())
-                                                    rating_count = int(rating_text.split("（共")[1].split("条评价）")[0].strip())
-                                                elif "rating" in rating_text.lower():
-                                                    # 英文格式
-                                                    parts = rating_text.lower().split("rating")
-                                                    if len(parts) > 1:
-                                                        try:
-                                                            rating_value = float(parts[0].strip())
-                                                            if "reviews" in rating_text.lower():
-                                                                count_part = rating_text.lower().split("reviews")[0]
-                                                                count_part = count_part.split("rating")[1]
-                                                                rating_count = int(''.join(filter(str.isdigit, count_part)))
-                                                        except:
-                                                            pass
+                                                import re
+                                                rating_match = re.search(r'(\d+(\.\d+)?)', rating_text)
+                                                if rating_match:
+                                                    rating = rating_match.group(1)
                                                 break
-                                except:
-                                    rating_value = 0
-                                    rating_count = 0
+                                    
+                                    # 评分数量
+                                    rating_count = "0"
                                 
                                 # 提取图标URL
-                                try:
-                                    icon_element = card.query_selector("img")
-                                    icon_url = icon_element.get_attribute("src") if icon_element else None
-                                except:
-                                    icon_url = None
+                                icon_element = card.query_selector("img")
+                                icon_url = None
+                                if icon_element:
+                                    # 尝试获取srcset属性，它通常包含更高质量的图像
+                                    srcset = icon_element.get_attribute("srcset")
+                                    if srcset:
+                                        # 从srcset中提取第一个URL
+                                        icon_url = srcset.split(" ")[0]
+                                    else:
+                                        # 如果没有srcset，使用src
+                                        icon_url = icon_element.get_attribute("src")
                                 
                                 # 下载图标
                                 icon_path = None
@@ -531,39 +695,50 @@ class ExtensionManager:
                                     "name": name,
                                     "id": ext_id,
                                     "description": description,
-                                    "icon": icon_path,
-                                    "crx_path": None,
-                                    "from_search": True,  # 标记为搜索结果
-                                    "rating": rating_value,
+                                    "publisher": publisher,
+                                    "rating": rating,
                                     "rating_count": rating_count,
-                                    "publisher": publisher
+                                    "icon": icon_path,
+                                    "from_search": True
                                 }
+                                
                                 extensions.append(extension)
-                                print(f"添加扩展到结果列表: {name}")
-                            
-                            except Exception as e:
-                                print(f"处理扩展卡片时出错: {str(e)}")
+                                
+                            except Exception as ext_error:
+                                print(f"处理扩展卡片时出错: {str(ext_error)}")
+                                import traceback
+                                traceback.print_exc()
                         
-                        print(f"共找到 {len(extensions)} 个扩展")
-                        if len(extensions) > 0:
-                            return extensions
+                        if progress_callback:
+                            progress_callback.emit(f"成功获取 {len(extensions)} 个扩展信息")
                         else:
-                            # 如果没有找到任何扩展，直接打开浏览器
-                            return self._open_chrome_store_in_browser(keyword)
+                            print(f"成功获取 {len(extensions)} 个扩展信息")
+                            
+                        return extensions
                     
                     except Exception as e:
-                        print(f"等待扩展卡片元素出现时出错: {str(e)}")
+                        if progress_callback:
+                            progress_callback.emit(f"等待扩展卡片元素出现时出错: {str(e)}")
+                        else:
+                            print(f"等待扩展卡片元素出现时出错: {str(e)}")
+                            
                         # 保存页面源码用于调试
                         debug_file = os.path.join(os.path.dirname(self.config_manager.config_file), "chrome_store_page_source.html")
                         with open(debug_file, 'w', encoding='utf-8') as f:
                             f.write(page.content())
-                        print(f"已保存页面源码到: {debug_file}")
+                        if progress_callback:
+                            progress_callback.emit(f"已保存页面源码到: {debug_file}")
+                        else:
+                            print(f"已保存页面源码到: {debug_file}")
                         
                         # 尝试截图
                         try:
                             screenshot_file = os.path.join(os.path.dirname(self.config_manager.config_file), "chrome_store_screenshot.png")
                             page.screenshot(path=screenshot_file)
-                            print(f"已保存页面截图到: {screenshot_file}")
+                            if progress_callback:
+                                progress_callback.emit(f"已保存页面截图到: {screenshot_file}")
+                            else:
+                                print(f"已保存页面截图到: {screenshot_file}")
                         except Exception as screenshot_error:
                             print(f"保存截图失败: {str(screenshot_error)}")
                         
@@ -573,10 +748,18 @@ class ExtensionManager:
                 finally:
                     # 关闭浏览器
                     browser.close()
-                    print("浏览器已关闭")
+                    if progress_callback:
+                        progress_callback.emit("浏览器已关闭")
+                    else:
+                        print("浏览器已关闭")
         
         except Exception as e:
-            print(f"搜索扩展时出错: {str(e)}")
+            if progress_callback:
+                progress_callback.emit(f"搜索扩展时出错: {str(e)}")
+            else:
+                print(f"搜索扩展时出错: {str(e)}")
+                import traceback
+                traceback.print_exc()
             # 直接打开浏览器
             return self._open_chrome_store_in_browser(keyword)
     

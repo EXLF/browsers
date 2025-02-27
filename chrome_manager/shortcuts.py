@@ -23,6 +23,7 @@ class ShortcutManager:
         """
         self.main_window = main_window
         self.desktop_path = winshell.desktop()
+        self.delete_worker = None  # 删除工作线程
     
     def create_shortcut(self, name, data_dir, chrome_path):
         """
@@ -50,13 +51,12 @@ class ShortcutManager:
             os.makedirs(data_dir, exist_ok=True)
             
             # 创建快捷方式
-            shell = Dispatch('WScript.Shell')
+            shell = Dispatch("WScript.Shell")
             shortcut = shell.CreateShortCut(shortcut_path)
-            shortcut.Targetpath = chrome_path
+            shortcut.TargetPath = chrome_path
             shortcut.Arguments = f'--user-data-dir="{data_dir}"'
-            shortcut.Description = f"Chrome - {display_name}"
-            shortcut.IconLocation = f"{chrome_path}, 0"
             shortcut.WorkingDirectory = os.path.dirname(chrome_path)
+            shortcut.IconLocation = f"{chrome_path}, 0"
             shortcut.save()
             
             return True
@@ -69,7 +69,7 @@ class ShortcutManager:
     
     def delete_shortcut(self, name, data_dir):
         """
-        删除Chrome快捷方式和数据目录
+        删除Chrome快捷方式和数据目录 - 同步方法
         
         Args:
             name: 快捷方式名称
@@ -98,6 +98,34 @@ class ShortcutManager:
             import traceback
             traceback.print_exc()
             return False
+    
+    def delete_shortcut_async(self, name, data_dir, success_callback=None, error_callback=None):
+        """
+        异步删除Chrome快捷方式和数据目录
+        
+        Args:
+            name: 快捷方式名称
+            data_dir: 数据目录路径
+            success_callback: 删除成功的回调函数
+            error_callback: 删除失败的回调函数
+        """
+        from .async_workers import DeleteShortcutWorker
+        
+        # 创建快捷方式路径
+        shortcut_path = os.path.join(self.desktop_path, f"{name}.lnk")
+        
+        # 创建并启动删除工作线程
+        self.delete_worker = DeleteShortcutWorker(shortcut_path, data_dir)
+        
+        # 连接信号
+        if success_callback:
+            self.delete_worker.finished.connect(success_callback)
+        
+        if error_callback:
+            self.delete_worker.error.connect(error_callback)
+        
+        # 启动线程
+        self.delete_worker.start()
     
     def launch_browser(self, chrome_path, data_dir):
         """

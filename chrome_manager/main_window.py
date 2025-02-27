@@ -5,10 +5,11 @@
 import os
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
-    QScrollArea, QGridLayout, QStackedWidget, QStyleFactory, QDialog, QFileDialog
+    QScrollArea, QGridLayout, QStackedWidget, QStyleFactory, QDialog, 
+    QFileDialog, QPushButton, QGraphicsDropShadowEffect
 )
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont, QColor
 
 from .constants import (
     PRIMARY_COLOR, BACKGROUND_COLOR, TEXT_PRIMARY_COLOR, 
@@ -70,6 +71,48 @@ class ChromeShortcutManager(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         
+        # 设置应用整体样式 - 极简样式
+        self.setStyleSheet(f"""
+            QMainWindow, QWidget {{
+                background-color: #FAFAFA;
+                font-family: 'Microsoft YaHei UI', 'SimHei', sans-serif;
+            }}
+            QScrollArea {{
+                border: none;
+                background-color: transparent;
+            }}
+            QScrollBar:vertical {{
+                width: 8px;
+                background: transparent;
+            }}
+            QScrollBar::handle:vertical {{
+                background: #CCCCCC;
+                border-radius: 4px;
+                min-height: 20px;
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                height: 0px;
+            }}
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+                background: transparent;
+            }}
+            QLabel {{
+                color: #333333;
+            }}
+            QLineEdit {{
+                border: 1px solid #CCCCCC;
+                border-radius: 4px;
+                padding: 6px 10px;
+                background-color: white;
+            }}
+            QLineEdit:focus {{
+                border: 1px solid #1A73E8;
+            }}
+            QPushButton {{
+                padding: 6px 12px;
+            }}
+        """)
+        
         # 主布局
         main_layout = QHBoxLayout(central_widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -90,26 +133,35 @@ class ChromeShortcutManager(QMainWindow):
     def setup_sidebar(self):
         """设置左侧菜单栏"""
         self.sidebar_widget = QWidget()
-        self.sidebar_widget.setFixedWidth(200)
+        self.sidebar_widget.setFixedWidth(220)  # 增加宽度
+        
+        # 简化侧边栏样式
         self.sidebar_widget.setStyleSheet(f"""
             QWidget {{
-                background-color: {BACKGROUND_COLOR};
-                border-right: 1px solid #EEEEEE;
+                background-color: white;
+                border-right: 1px solid #E0E0E0;
             }}
         """)
         
         sidebar_layout = QVBoxLayout(self.sidebar_widget)
-        sidebar_layout.setContentsMargins(16, 24, 16, 24)
-        sidebar_layout.setSpacing(8)
+        sidebar_layout.setContentsMargins(20, 30, 20, 30)  # 增加内边距
+        sidebar_layout.setSpacing(12)  # 增加间距
         
         # 标题
         title_label = QLabel("Chrome多实例管理器")
-        title_label.setFont(QFont(FONT_FAMILY, 14, QFont.Weight.Bold))
-        title_label.setStyleSheet(f"color: {TEXT_PRIMARY_COLOR};")
+        title_label.setFont(QFont(FONT_FAMILY, 16, QFont.Weight.Bold))
+        title_label.setStyleSheet(f"color: {TEXT_PRIMARY_COLOR}; margin-bottom: 8px;")
         title_label.setWordWrap(True)
         sidebar_layout.addWidget(title_label)
         
-        sidebar_layout.addSpacing(24)
+        # 副标题
+        subtitle_label = QLabel("轻松管理多个Chrome实例和扩展")
+        subtitle_label.setFont(QFont(FONT_FAMILY, 10))
+        subtitle_label.setStyleSheet(f"color: {TEXT_SECONDARY_COLOR};")
+        subtitle_label.setWordWrap(True)
+        sidebar_layout.addWidget(subtitle_label)
+        
+        sidebar_layout.addSpacing(30)
         
         # 菜单按钮
         self.home_btn = self.create_menu_button("主页", True)
@@ -124,7 +176,7 @@ class ChromeShortcutManager(QMainWindow):
         sidebar_layout.addStretch()
         version_label = QLabel("Version 1.0")
         version_label.setStyleSheet(f"color: {TEXT_HINT_COLOR};")
-        version_label.setFont(QFont(FONT_FAMILY, 8))
+        version_label.setFont(QFont(FONT_FAMILY, 9))
         sidebar_layout.addWidget(version_label)
         
         # 连接信号
@@ -134,27 +186,30 @@ class ChromeShortcutManager(QMainWindow):
 
     def create_menu_button(self, text, is_active=False):
         """创建菜单按钮"""
-        btn = ModernButton(text)
+        btn = QPushButton(text)
         btn.setCheckable(True)
         btn.setChecked(is_active)
-        btn.setFixedHeight(40)
+        btn.setFixedHeight(46)  # 增加高度
         
         btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: transparent;
                 border: none;
-                border-radius: 6px;
-                padding: 8px 16px;
+                border-radius: 10px;
+                padding: 10px 16px;
                 text-align: left;
                 color: {TEXT_PRIMARY_COLOR};
+                font-size: 14px;
+                font-family: 'Microsoft YaHei UI', sans-serif;
             }}
             QPushButton:hover {{
-                background-color: {PRIMARY_COLOR}15;
+                background-color: rgba(26, 115, 232, 0.1);
             }}
             QPushButton:checked {{
-                background-color: {PRIMARY_COLOR}25;
-                color: {PRIMARY_COLOR};
+                background-color: rgba(26, 115, 232, 0.15);
+                color: #1A73E8;
                 font-weight: bold;
+                border-left: 4px solid #1A73E8;
             }}
         """)
         
@@ -180,30 +235,112 @@ class ChromeShortcutManager(QMainWindow):
         """创建主页"""
         home_page = QWidget()
         home_layout = QVBoxLayout(home_page)
-        home_layout.setContentsMargins(20, 20, 20, 20)  # 减小内边距
-        home_layout.setSpacing(16)  # 减小间距
+        home_layout.setContentsMargins(30, 30, 30, 30)  # 增加内边距
+        home_layout.setSpacing(20)  # 增加间距
         
         # 顶部操作栏
         top_bar = QHBoxLayout()
         
         page_title = QLabel("我的浏览器")
         page_title.setFont(QFont(FONT_FAMILY, 24, QFont.Weight.Bold))
+        page_title.setStyleSheet("color: #202124;")
         
         # 添加新实例按钮
-        add_btn = ModernButton("添加新实例", accent=True)
+        add_btn = QPushButton("添加新实例")
+        add_btn.setFixedSize(140, 40)
+        add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        add_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #1A73E8;
+                color: white;
+                border: none;
+                border-radius: 20px;
+                padding: 8px 16px;
+                font-size: 14px;
+                font-weight: bold;
+                font-family: 'Microsoft YaHei UI', sans-serif;
+            }
+            QPushButton:hover {
+                background-color: #1765CC;
+            }
+            QPushButton:pressed {
+                background-color: #185ABC;
+            }
+        """)
         add_btn.clicked.connect(self.add_shortcut)
         
         # 批量操作按钮
-        self.batch_btn = ModernButton("批量删除")
+        self.batch_btn = QPushButton("批量删除")
+        self.batch_btn.setFixedSize(120, 40)
+        self.batch_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.batch_btn.setStyleSheet("""
+            QPushButton {
+                background-color: white;
+                color: #5F6368;
+                border: 1px solid #DADCE0;
+                border-radius: 20px;
+                padding: 8px 16px;
+                font-size: 14px;
+                font-family: 'Microsoft YaHei UI', sans-serif;
+            }
+            QPushButton:hover {
+                background-color: #F8F9FA;
+                color: #202124;
+                border-color: #D2E3FC;
+            }
+            QPushButton:pressed {
+                background-color: #F1F3F4;
+            }
+        """)
         self.batch_btn.clicked.connect(self.toggle_batch_mode)
         
         # 批量删除确认按钮（初始隐藏）
-        self.confirm_delete_btn = ModernButton("删除选中", accent=True)
+        self.confirm_delete_btn = QPushButton("删除选中")
+        self.confirm_delete_btn.setFixedSize(120, 40)
+        self.confirm_delete_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.confirm_delete_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #EA4335;
+                color: white;
+                border: none;
+                border-radius: 20px;
+                padding: 8px 16px;
+                font-size: 14px;
+                font-weight: bold;
+                font-family: 'Microsoft YaHei UI', sans-serif;
+            }
+            QPushButton:hover {
+                background-color: #D93025;
+            }
+            QPushButton:pressed {
+                background-color: #C5221F;
+            }
+        """)
         self.confirm_delete_btn.setVisible(False)
         self.confirm_delete_btn.clicked.connect(self.delete_selected_shortcuts)
         
         # 取消批量操作按钮（初始隐藏）
-        self.cancel_batch_btn = ModernButton("取消")
+        self.cancel_batch_btn = QPushButton("取消")
+        self.cancel_batch_btn.setFixedSize(100, 40)
+        self.cancel_batch_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.cancel_batch_btn.setStyleSheet("""
+            QPushButton {
+                background-color: white;
+                color: #5F6368;
+                border: 1px solid #DADCE0;
+                border-radius: 20px;
+                padding: 8px 16px;
+                font-size: 14px;
+                font-family: 'Microsoft YaHei UI', sans-serif;
+            }
+            QPushButton:hover {
+                background-color: #F8F9FA;
+                color: #202124;
+            }
+            QPushButton:pressed {
+                background-color: #F1F3F4;
+            }
+        """)
         self.cancel_batch_btn.setVisible(False)
         self.cancel_batch_btn.clicked.connect(self.toggle_batch_mode)
         
@@ -229,9 +366,12 @@ class ChromeShortcutManager(QMainWindow):
                 background: transparent;
             }
             QScrollBar::handle:vertical {
-                background: #CCCCCC;
+                background: rgba(0, 0, 0, 0.2);
                 border-radius: 4px;
                 min-height: 20px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: rgba(0, 0, 0, 0.3);
             }
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
                 height: 0px;
@@ -245,7 +385,7 @@ class ChromeShortcutManager(QMainWindow):
         self.grid_widget.setStyleSheet("background-color: transparent;")
         self.grid_layout = QGridLayout(self.grid_widget)
         self.grid_layout.setContentsMargins(0, 0, 0, 0)
-        self.grid_layout.setSpacing(16)
+        self.grid_layout.setSpacing(24)  # 增加卡片间距
         
         scroll_area.setWidget(self.grid_widget)
         home_layout.addWidget(scroll_area)
@@ -399,7 +539,7 @@ class ChromeShortcutManager(QMainWindow):
         self.card_widgets = []
         
         # 设置网格布局属性
-        self.grid_layout.setSpacing(16)  # 设置基础间距
+        self.grid_layout.setSpacing(24)  # 设置基础间距
         self.grid_layout.setContentsMargins(30, 20, 30, 20)  # 调整外边距
         self.grid_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)  # 顶部水平居中对齐
         
@@ -522,14 +662,28 @@ class ChromeShortcutManager(QMainWindow):
         # 从快捷方式列表中删除
         self.shortcuts = [s for s in self.shortcuts if s["name"] != name]
         
-        # 删除实际文件
-        success = self.shortcut_manager.delete_shortcut(name, data_dir)
+        # 显示正在删除的状态
+        self.statusBar().showMessage(f"正在删除 Chrome 实例 '{name}'...", 0)  # 不自动消失
         
+        # 使用异步方法删除实际文件
+        self.shortcut_manager.delete_shortcut_async(
+            name, 
+            data_dir,
+            success_callback=lambda success: self._on_delete_shortcut_finished(success, name),
+            error_callback=self._on_delete_shortcut_error
+        )
+    
+    def _on_delete_shortcut_finished(self, success, name):
+        """删除快捷方式完成回调"""
         if success:
             self.update_browser_grid()
             self.auto_save_config()
             self.statusBar().showMessage(f"Chrome实例 '{name}' 已删除", 3000)  # 显示3秒
     
+    def _on_delete_shortcut_error(self, error_message):
+        """删除快捷方式错误回调"""
+        self.statusBar().showMessage(f"删除失败: {error_message}", 5000)
+
     def toggle_batch_mode(self):
         """切换批量操作模式"""
         self.is_batch_mode = not self.is_batch_mode
@@ -552,19 +706,53 @@ class ChromeShortcutManager(QMainWindow):
             self.statusBar().showMessage("请先选择要删除的Chrome实例", 3000)
             return
         
-        # 执行删除
-        deleted_count = 0
-        for card in selected_cards:
-            success = self.shortcut_manager.delete_shortcut(card.name, card.data_dir)
-            if success:
-                # 从快捷方式列表中删除
-                self.shortcuts = [s for s in self.shortcuts if s["name"] != card.name]
-                deleted_count += 1
+        # 显示正在删除的状态
+        total_count = len(selected_cards)
+        self.statusBar().showMessage(f"正在删除 {total_count} 个Chrome实例...", 0)  # 不自动消失
         
-        if deleted_count > 0:
-            self.update_browser_grid()
-            self.auto_save_config()
-            self.statusBar().showMessage(f"已删除 {deleted_count} 个Chrome实例", 3000)
+        # 保存要删除的卡片信息
+        self.cards_to_delete = selected_cards.copy()
+        self.deleted_count = 0
+        self.total_to_delete = total_count
+        
+        # 开始删除第一个
+        self._delete_next_card()
         
         # 退出批量模式
-        self.toggle_batch_mode() 
+        self.toggle_batch_mode()
+    
+    def _delete_next_card(self):
+        """删除下一个卡片"""
+        if not self.cards_to_delete:
+            # 所有卡片都已处理完毕
+            if self.deleted_count > 0:
+                self.update_browser_grid()
+                self.auto_save_config()
+                self.statusBar().showMessage(f"已删除 {self.deleted_count} 个Chrome实例", 3000)
+            return
+        
+        # 取出下一个要删除的卡片
+        card = self.cards_to_delete.pop(0)
+        
+        # 从快捷方式列表中删除
+        self.shortcuts = [s for s in self.shortcuts if s["name"] != card.name]
+        
+        # 更新状态栏
+        remaining = len(self.cards_to_delete)
+        self.statusBar().showMessage(f"正在删除 {self.total_to_delete - remaining}/{self.total_to_delete} 个Chrome实例...", 0)
+        
+        # 使用异步方法删除实际文件
+        self.shortcut_manager.delete_shortcut_async(
+            card.name, 
+            card.data_dir,
+            success_callback=lambda success: self._on_batch_delete_finished(success),
+            error_callback=self._on_delete_shortcut_error
+        )
+    
+    def _on_batch_delete_finished(self, success):
+        """批量删除单个项目完成回调"""
+        if success:
+            self.deleted_count += 1
+        
+        # 继续删除下一个
+        self._delete_next_card() 
