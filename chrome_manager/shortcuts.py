@@ -22,20 +22,20 @@ class ShortcutManager:
             main_window: 主窗口实例，用于显示消息对话框
         """
         self.main_window = main_window
-        self.shortcuts_path = winshell.desktop()  # 默认保存在桌面
+        self.desktop_path = winshell.desktop()
+        self.shortcuts_dir = self.desktop_path  # 默认使用桌面路径
     
-    def set_shortcuts_path(self, path):
+    def set_shortcuts_dir(self, path):
         """
-        设置快捷方式保存路径
+        设置快捷方式保存目录
         
         Args:
-            path: 快捷方式保存路径
+            path: 快捷方式保存目录路径
         """
         if path and os.path.exists(path):
-            self.shortcuts_path = path
-            print(f"快捷方式保存路径已更新: {path}")
+            self.shortcuts_dir = path
         else:
-            print(f"无效的快捷方式保存路径: {path}，使用默认路径: {self.shortcuts_path}")
+            self.shortcuts_dir = self.desktop_path  # 如果路径无效，使用桌面路径
     
     def create_shortcut(self, name, data_dir, chrome_path):
         """
@@ -57,10 +57,13 @@ class ShortcutManager:
             display_name = name
             
             # 创建快捷方式路径
-            shortcut_path = os.path.join(self.shortcuts_path, f"{display_name}.lnk")
+            shortcut_path = os.path.join(self.shortcuts_dir, f"{display_name}.lnk")
             
             # 确保数据目录存在
             os.makedirs(data_dir, exist_ok=True)
+            
+            # 确保快捷方式目录存在
+            os.makedirs(os.path.dirname(shortcut_path), exist_ok=True)
             
             # 创建快捷方式
             shell = Dispatch('WScript.Shell')
@@ -72,6 +75,7 @@ class ShortcutManager:
             shortcut.WorkingDirectory = os.path.dirname(chrome_path)
             shortcut.save()
             
+            print(f"快捷方式已创建: {shortcut_path}")
             return True
         except Exception as e:
             self.show_error_message(f"创建快捷方式失败：{str(e)}")
@@ -92,18 +96,18 @@ class ShortcutManager:
             bool: 是否删除成功
         """
         try:
-            # 删除快捷方式
-            shortcut_path = os.path.join(self.shortcuts_path, f"{name}.lnk")
+            # 删除快捷方式文件
+            shortcut_path = os.path.join(self.shortcuts_dir, f"{name}.lnk")
             if os.path.exists(shortcut_path):
                 os.remove(shortcut_path)
                 print(f"快捷方式已删除: {shortcut_path}")
             
             # 删除数据目录
-            import shutil
-            if os.path.exists(data_dir):
+            if os.path.exists(data_dir) and os.path.isdir(data_dir):
+                import shutil
                 shutil.rmtree(data_dir)
                 print(f"数据目录已删除: {data_dir}")
-            
+                
             return True
         except Exception as e:
             self.show_error_message(f"删除快捷方式失败：{str(e)}")

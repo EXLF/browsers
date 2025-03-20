@@ -76,12 +76,12 @@ class AddShortcutDialog(ModernDialog):
     """添加Chrome快捷方式对话框"""
     
     def __init__(self, parent=None, shortcut_count=0):
-        super().__init__(parent, "添加Chrome快捷方式", 450, 280, frameless=True)
+        super().__init__(parent, "添加Chrome快捷方式", 450, 330, frameless=True)
         
         # 主布局
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(20)
+        layout.setSpacing(16)
         
         # 标题和关闭按钮
         title_bar = QHBoxLayout()
@@ -116,6 +116,7 @@ class AddShortcutDialog(ModernDialog):
         title_bar.addWidget(close_btn)
         
         layout.addLayout(title_bar)
+        layout.addSpacing(8)
         
         # 表单
         form_layout = QVBoxLayout()
@@ -142,7 +143,15 @@ class AddShortcutDialog(ModernDialog):
         form_layout.addLayout(dir_layout)
         
         layout.addLayout(form_layout)
-        layout.addStretch()
+        layout.addSpacing(4)
+        
+        # 添加说明文本
+        help_text = QLabel("数据目录名会作为Chrome用户数据存储目录的名称，\n不同实例应使用不同的数据目录名以避免冲突。")
+        help_text.setStyleSheet(f"color: {TEXT_SECONDARY_COLOR}; font-size: 9pt;")
+        help_text.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        layout.addWidget(help_text)
+        
+        layout.addStretch(1)
         
         # 按钮
         button_layout = QHBoxLayout()

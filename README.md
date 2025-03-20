@@ -9,7 +9,6 @@
 - 现代化UI界面，支持高DPI显示
 - 自动保存配置，下次启动时自动加载
 - 支持自定义Chrome路径和数据根目录
-- 支持自定义快捷方式保存位置
 - 完美支持中文字体显示（使用微软雅黑UI字体）
 
 ## 系统要求
@@ -23,8 +22,8 @@
 
 1. 克隆或下载本仓库
 ```bash
-git clone https://github.com/EXLF/browsers.git
-cd browsers
+git clone https://github.com/yourusername/chrome-shortcut-manager.git
+cd chrome-shortcut-manager
 ```
 
 2. 安装依赖
@@ -52,7 +51,6 @@ python main.py
 
 - Chrome可执行文件路径
 - 数据根目录（所有Chrome实例的数据将存储在此目录下的子文件夹中）
-- 快捷方式保存路径（默认保存在桌面，可自定义保存位置）
 
 ## 技术实现
 
@@ -60,14 +58,13 @@ python main.py
 - 采用模块化设计，代码结构清晰
 - 全局应用微软雅黑UI字体，提供更好的中文显示效果
 - 使用JSON文件保存配置信息
-- 智能的实例编号分配机制
 
 ## 开发者信息
 
 如果您想参与开发或修改代码，项目结构如下：
 
 ```
-browsers/
+chrome-shortcut-manager/
 ├── main.py                  # 程序入口
 ├── chrome_manager/          # 主模块
 │   ├── __init__.py
