@@ -6,6 +6,7 @@ import os
 import json
 from PyQt6.QtWidgets import QMessageBox
 from PyQt6.QtGui import QFont
+import winshell
 
 from .constants import FONT_FAMILY, PRIMARY_COLOR, BACKGROUND_COLOR, TEXT_PRIMARY_COLOR
 
@@ -54,6 +55,7 @@ class ConfigManager:
             'chrome_path': r"C:\Program Files\Google\Chrome\Application\chrome.exe",
             'data_root': os.getcwd(),
             'user_modified_data_root': False,
+            'shortcuts_path': winshell.desktop(),  # 默认保存在桌面
             'shortcuts': []
         }
         
@@ -75,6 +77,14 @@ class ConfigManager:
                         else:
                             print(f"配置文件中的数据根目录不存在: {config.get('data_root')}，使用默认值")
                         config['data_root'] = os.getcwd()
+                    
+                    # 验证快捷方式保存路径
+                    if not config.get('shortcuts_path') or not os.path.exists(config.get('shortcuts_path')):
+                        if not config.get('shortcuts_path'):
+                            print("配置文件中快捷方式保存路径为空，使用默认值")
+                        else:
+                            print(f"配置文件中的快捷方式保存路径不存在: {config.get('shortcuts_path')}，使用默认值")
+                        config['shortcuts_path'] = winshell.desktop()
                     
                     return config
                     
@@ -98,11 +108,17 @@ class ConfigManager:
         try:
             print(f"保存配置 - Chrome路径: {config.get('chrome_path')}")
             print(f"保存配置 - 数据根目录: {config.get('data_root')}")
+            print(f"保存配置 - 快捷方式保存路径: {config.get('shortcuts_path')}")
             
             # 确保数据根目录不为空
             if not config.get('data_root'):
                 config['data_root'] = os.getcwd()
                 print(f"数据根目录为空，使用当前目录: {config['data_root']}")
+            
+            # 确保快捷方式保存路径不为空
+            if not config.get('shortcuts_path'):
+                config['shortcuts_path'] = winshell.desktop()
+                print(f"快捷方式保存路径为空，使用桌面: {config['shortcuts_path']}")
             
             # 确保目录存在
             if not os.path.exists(config.get('data_root')):
@@ -111,6 +127,14 @@ class ConfigManager:
                     print(f"创建数据根目录: {config.get('data_root')}")
                 except Exception as e:
                     print(f"创建数据根目录失败: {str(e)}")
+            
+            # 确保快捷方式保存目录存在
+            if not os.path.exists(config.get('shortcuts_path')):
+                try:
+                    os.makedirs(config.get('shortcuts_path'), exist_ok=True)
+                    print(f"创建快捷方式保存目录: {config.get('shortcuts_path')}")
+                except Exception as e:
+                    print(f"创建快捷方式保存目录失败: {str(e)}")
             
             # 确保配置目录存在
             config_dir = os.path.dirname(self.config_file)

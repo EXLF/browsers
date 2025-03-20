@@ -248,73 +248,77 @@ class ChromeShortcutManager(QMainWindow):
         """创建设置页面"""
         settings_page = QWidget()
         settings_layout = QVBoxLayout(settings_page)
-        settings_layout.setContentsMargins(32, 32, 32, 32)
-        settings_layout.setSpacing(24)
+        settings_layout.setContentsMargins(20, 20, 20, 20)
+        settings_layout.setSpacing(16)
         
-        # 顶部标题
-        page_title = QLabel("全局设置")
+        # 页面标题
+        page_title = QLabel("设置")
         page_title.setFont(QFont(FONT_FAMILY, 24, QFont.Weight.Bold))
         settings_layout.addWidget(page_title)
         
-        # 设置内容区域
-        content_widget = QWidget()
-        content_layout = QVBoxLayout(content_widget)
-        content_layout.setContentsMargins(0, 24, 0, 0)
-        content_layout.setSpacing(24)
-        
         # Chrome路径设置
-        chrome_layout = QVBoxLayout()
-        chrome_layout.setSpacing(8)
+        chrome_group = QWidget()
+        chrome_layout = QHBoxLayout(chrome_group)
+        chrome_layout.setContentsMargins(0, 0, 0, 0)
         
-        chrome_label = QLabel("Chrome路径")
-        chrome_label.setStyleSheet(f"color: {TEXT_SECONDARY_COLOR}; font-size: 14px;")
+        chrome_label = QLabel("Chrome路径:")
+        chrome_label.setFixedWidth(120)
+        self.chrome_path_input = ModernLineEdit()
+        self.chrome_path_input.setText(self.chrome_path)
         
-        chrome_input_layout = QHBoxLayout()
-        self.chrome_path_edit = ModernLineEdit(self.chrome_path)
-        browse_chrome_btn = ModernButton("浏览...")
-        browse_chrome_btn.setFixedWidth(90)
+        browse_chrome_btn = ModernButton("浏览")
         browse_chrome_btn.clicked.connect(self.browse_chrome)
         
-        chrome_input_layout.addWidget(self.chrome_path_edit)
-        chrome_input_layout.addWidget(browse_chrome_btn)
-        
         chrome_layout.addWidget(chrome_label)
-        chrome_layout.addLayout(chrome_input_layout)
+        chrome_layout.addWidget(self.chrome_path_input)
+        chrome_layout.addWidget(browse_chrome_btn)
         
-        content_layout.addLayout(chrome_layout)
+        settings_layout.addWidget(chrome_group)
         
         # 数据根目录设置
-        data_layout = QVBoxLayout()
-        data_layout.setSpacing(8)
+        data_root_group = QWidget()
+        data_root_layout = QHBoxLayout(data_root_group)
+        data_root_layout.setContentsMargins(0, 0, 0, 0)
         
-        data_label = QLabel("数据根目录")
-        data_label.setStyleSheet(f"color: {TEXT_SECONDARY_COLOR}; font-size: 14px;")
+        data_root_label = QLabel("数据根目录:")
+        data_root_label.setFixedWidth(120)
+        self.data_root_input = ModernLineEdit()
+        self.data_root_input.setText(self.data_root)
         
-        data_input_layout = QHBoxLayout()
-        self.data_root_edit = ModernLineEdit(self.data_root)
-        browse_data_btn = ModernButton("浏览...")
-        browse_data_btn.setFixedWidth(90)
-        browse_data_btn.clicked.connect(self.browse_data_root)
+        browse_data_root_btn = ModernButton("浏览")
+        browse_data_root_btn.clicked.connect(self.browse_data_root)
         
-        data_input_layout.addWidget(self.data_root_edit)
-        data_input_layout.addWidget(browse_data_btn)
+        data_root_layout.addWidget(data_root_label)
+        data_root_layout.addWidget(self.data_root_input)
+        data_root_layout.addWidget(browse_data_root_btn)
         
-        data_layout.addWidget(data_label)
-        data_layout.addLayout(data_input_layout)
+        settings_layout.addWidget(data_root_group)
         
-        content_layout.addLayout(data_layout)
+        # 快捷方式保存路径设置
+        shortcuts_path_group = QWidget()
+        shortcuts_path_layout = QHBoxLayout(shortcuts_path_group)
+        shortcuts_path_layout.setContentsMargins(0, 0, 0, 0)
+        
+        shortcuts_path_label = QLabel("快捷方式保存路径:")
+        shortcuts_path_label.setFixedWidth(120)
+        self.shortcuts_path_input = ModernLineEdit()
+        self.shortcuts_path_input.setText(self.shortcut_manager.shortcuts_path)
+        
+        browse_shortcuts_path_btn = ModernButton("浏览")
+        browse_shortcuts_path_btn.clicked.connect(self.browse_shortcuts_path)
+        
+        shortcuts_path_layout.addWidget(shortcuts_path_label)
+        shortcuts_path_layout.addWidget(self.shortcuts_path_input)
+        shortcuts_path_layout.addWidget(browse_shortcuts_path_btn)
+        
+        settings_layout.addWidget(shortcuts_path_group)
         
         # 保存按钮
-        save_layout = QHBoxLayout()
         save_btn = ModernButton("保存设置", accent=True)
         save_btn.clicked.connect(self.save_settings)
-        save_layout.addStretch()
-        save_layout.addWidget(save_btn)
+        settings_layout.addWidget(save_btn)
         
-        content_layout.addStretch()
-        content_layout.addLayout(save_layout)
-        
-        settings_layout.addWidget(content_widget)
+        settings_layout.addStretch()
         
         return settings_page
 
@@ -328,44 +332,67 @@ class ChromeShortcutManager(QMainWindow):
         
         # 如果切换到设置页面，更新输入框的值
         if index == 1:
-            self.chrome_path_edit.setText(self.chrome_path)
-            self.data_root_edit.setText(self.data_root)
+            self.chrome_path_input.setText(self.chrome_path)
+            self.data_root_input.setText(self.data_root)
 
     def browse_chrome(self):
         """浏览选择Chrome可执行文件"""
         path, _ = QFileDialog.getOpenFileName(
             self,
             "选择Chrome可执行文件",
-            os.path.dirname(self.chrome_path_edit.text()),
+            os.path.dirname(self.chrome_path_input.text()),
             "可执行文件 (*.exe)"
         )
         if path:
-            self.chrome_path_edit.setText(path)
+            self.chrome_path_input.setText(path)
     
     def browse_data_root(self):
         """浏览选择数据根目录"""
         path = QFileDialog.getExistingDirectory(
             self,
             "选择数据根目录",
-            self.data_root_edit.text() or os.getcwd()
+            self.data_root_input.text() or os.getcwd()
         )
         if path:
-            self.data_root_edit.setText(path)
+            self.data_root_input.setText(path)
             
+    def browse_shortcuts_path(self):
+        """浏览选择快捷方式保存路径"""
+        path = QFileDialog.getExistingDirectory(
+            self,
+            "选择快捷方式保存路径",
+            self.shortcuts_path_input.text()
+        )
+        if path:
+            self.shortcuts_path_input.setText(path)
+
     def save_settings(self):
         """保存设置"""
-        chrome_path = self.chrome_path_edit.text().strip()
-        data_root = self.data_root_edit.text().strip()
+        # 更新Chrome路径
+        self.chrome_path = self.chrome_path_input.text()
         
-        if chrome_path and data_root:
-            self.chrome_path = chrome_path
-            self.data_root = data_root
+        # 更新数据根目录
+        new_data_root = self.data_root_input.text()
+        if new_data_root != self.data_root:
+            self.data_root = new_data_root
             self.user_modified_data_root = True
-            self.auto_save_config()
-            self.message_dialogs.show_success_message("设置已保存")
-            self.switch_page(0)  # 保存后返回主页
-        else:
-            self.message_dialogs.show_error_message("Chrome路径和数据根目录不能为空！")
+        
+        # 更新快捷方式保存路径
+        new_shortcuts_path = self.shortcuts_path_input.text()
+        self.shortcut_manager.set_shortcuts_path(new_shortcuts_path)
+        
+        # 保存配置
+        config = {
+            'chrome_path': self.chrome_path,
+            'data_root': self.data_root,
+            'user_modified_data_root': self.user_modified_data_root,
+            'shortcuts_path': self.shortcut_manager.shortcuts_path,
+            'shortcuts': self.shortcuts
+        }
+        self.config_manager.save_config(config)
+        
+        # 显示成功消息
+        self.message_dialogs.show_success("设置已保存")
 
     def update_browser_grid(self):
         """更新浏览器网格"""
@@ -473,23 +500,23 @@ class ChromeShortcutManager(QMainWindow):
     def load_config(self):
         """加载配置"""
         config = self.config_manager.load_config()
-        
-        # 设置Chrome路径
-        self.chrome_path = config.get('chrome_path', self.chrome_path)
-        
-        # 设置数据根目录
-        self.data_root = config.get('data_root', self.data_root)
+        self.chrome_path = config.get('chrome_path')
+        self.data_root = config.get('data_root')
         self.user_modified_data_root = config.get('user_modified_data_root', False)
-        
-        # 加载快捷方式
         self.shortcuts = config.get('shortcuts', [])
-    
+        
+        # 设置快捷方式保存路径
+        shortcuts_path = config.get('shortcuts_path')
+        if shortcuts_path:
+            self.shortcut_manager.set_shortcuts_path(shortcuts_path)
+        
     def auto_save_config(self):
         """自动保存配置"""
         config = {
             'chrome_path': self.chrome_path,
             'data_root': self.data_root,
             'user_modified_data_root': self.user_modified_data_root,
+            'shortcuts_path': self.shortcut_manager.shortcuts_path,
             'shortcuts': self.shortcuts
         }
         

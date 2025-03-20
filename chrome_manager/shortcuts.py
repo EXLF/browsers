@@ -22,7 +22,20 @@ class ShortcutManager:
             main_window: 主窗口实例，用于显示消息对话框
         """
         self.main_window = main_window
-        self.desktop_path = winshell.desktop()
+        self.shortcuts_path = winshell.desktop()  # 默认保存在桌面
+    
+    def set_shortcuts_path(self, path):
+        """
+        设置快捷方式保存路径
+        
+        Args:
+            path: 快捷方式保存路径
+        """
+        if path and os.path.exists(path):
+            self.shortcuts_path = path
+            print(f"快捷方式保存路径已更新: {path}")
+        else:
+            print(f"无效的快捷方式保存路径: {path}，使用默认路径: {self.shortcuts_path}")
     
     def create_shortcut(self, name, data_dir, chrome_path):
         """
@@ -44,7 +57,7 @@ class ShortcutManager:
             display_name = name
             
             # 创建快捷方式路径
-            shortcut_path = os.path.join(self.desktop_path, f"{display_name}.lnk")
+            shortcut_path = os.path.join(self.shortcuts_path, f"{display_name}.lnk")
             
             # 确保数据目录存在
             os.makedirs(data_dir, exist_ok=True)
@@ -79,8 +92,8 @@ class ShortcutManager:
             bool: 是否删除成功
         """
         try:
-            # 删除桌面快捷方式
-            shortcut_path = os.path.join(self.desktop_path, f"{name}.lnk")
+            # 删除快捷方式
+            shortcut_path = os.path.join(self.shortcuts_path, f"{name}.lnk")
             if os.path.exists(shortcut_path):
                 os.remove(shortcut_path)
                 print(f"快捷方式已删除: {shortcut_path}")
