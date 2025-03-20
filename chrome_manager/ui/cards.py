@@ -312,16 +312,19 @@ class BrowserCard(QFrame):
                 self.on_delete(self.name, self.data_dir)
     
     def set_select_mode(self, enabled):
-        """设置是否进入选择模式"""
+        """设置选择模式"""
         self.is_select_mode = enabled
         self.select_checkbox.setVisible(enabled)
         self.delete_btn.setVisible(not enabled)
-        self.is_selected = False
-        self.select_checkbox.setChecked(False)
-    
+        
+    def set_selected(self, selected):
+        """设置选中状态"""
+        self.is_selected = selected
+        self.select_checkbox.setChecked(selected)
+        
     def on_selection_changed(self, state):
-        """选择状态变化事件"""
-        self.is_selected = (state == Qt.CheckState.Checked.value)
+        """选择状态改变事件"""
+        self.is_selected = state == Qt.CheckState.Checked.value
         
     def launch_browser(self):
         """启动浏览器实例"""

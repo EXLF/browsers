@@ -186,6 +186,11 @@ class ChromeShortcutManager(QMainWindow):
         self.batch_btn = ModernButton("批量删除")
         self.batch_btn.clicked.connect(self.toggle_batch_mode)
         
+        # 全选按钮（初始隐藏）
+        self.select_all_btn = ModernButton("全选")
+        self.select_all_btn.setVisible(False)
+        self.select_all_btn.clicked.connect(self.toggle_select_all)
+        
         # 批量删除确认按钮（初始隐藏）
         self.confirm_delete_btn = ModernButton("删除选中", accent=True)
         self.confirm_delete_btn.setVisible(False)
@@ -199,6 +204,7 @@ class ChromeShortcutManager(QMainWindow):
         top_bar.addWidget(page_title)
         top_bar.addStretch()
         top_bar.addWidget(self.batch_btn)
+        top_bar.addWidget(self.select_all_btn)
         top_bar.addWidget(self.confirm_delete_btn)
         top_bar.addWidget(self.cancel_batch_btn)
         top_bar.addWidget(add_btn)
@@ -241,6 +247,7 @@ class ChromeShortcutManager(QMainWindow):
         
         # 批量操作状态
         self.is_batch_mode = False
+        self.is_all_selected = False  # 添加全选状态标记
         self.card_widgets = []  # 保存所有卡片组件
         
         return home_page
@@ -600,15 +607,28 @@ class ChromeShortcutManager(QMainWindow):
     def toggle_batch_mode(self):
         """切换批量操作模式"""
         self.is_batch_mode = not self.is_batch_mode
+        self.is_all_selected = False  # 重置全选状态
         
         # 更新按钮状态
         self.batch_btn.setVisible(not self.is_batch_mode)
+        self.select_all_btn.setVisible(self.is_batch_mode)
         self.confirm_delete_btn.setVisible(self.is_batch_mode)
         self.cancel_batch_btn.setVisible(self.is_batch_mode)
         
         # 更新所有卡片的选择模式
         for card in self.card_widgets:
             card.set_select_mode(self.is_batch_mode)
+            if not self.is_batch_mode:
+                card.set_selected(False)  # 退出批量模式时取消所有选择
+                
+    def toggle_select_all(self):
+        """切换全选状态"""
+        self.is_all_selected = not self.is_all_selected
+        self.select_all_btn.setText("取消全选" if self.is_all_selected else "全选")
+        
+        # 更新所有卡片的选中状态
+        for card in self.card_widgets:
+            card.set_selected(self.is_all_selected)
     
     def delete_selected_shortcuts(self):
         """删除选中的快捷方式"""
