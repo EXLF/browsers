@@ -27,9 +27,6 @@ class ConfigManager:
         
         # 确保配置目录存在
         self.ensure_config_dir()
-        
-        # 保存工作线程
-        self.save_worker = None
     
     def ensure_config_dir(self):
         """确保配置目录存在"""
@@ -91,13 +88,12 @@ class ConfigManager:
             print("配置文件不存在，将使用默认设置")
             return default_config
     
-    def save_config(self, config, callback=None):
+    def save_config(self, config):
         """
-        保存配置 - 同步方法
+        保存配置
         
         Args:
             config: 配置字典，包含chrome_path, data_root和shortcuts
-            callback: 保存完成后的回调函数
         """
         try:
             print(f"保存配置 - Chrome路径: {config.get('chrome_path')}")
@@ -131,16 +127,8 @@ class ConfigManager:
             if os.path.exists(self.config_file):
                 print(f"配置文件已成功创建: {self.config_file}")
                 print(f"配置文件大小: {os.path.getsize(self.config_file)} 字节")
-                
-                # 调用回调函数
-                if callback:
-                    callback(True)
             else:
                 print(f"警告: 配置文件未能创建: {self.config_file}")
-                
-                # 调用回调函数
-                if callback:
-                    callback(False)
                 
         except Exception as e:
             error_msg = f"保存配置文件失败：{str(e)}"
@@ -148,34 +136,6 @@ class ConfigManager:
             print(f"保存配置错误: {error_msg}")
             import traceback
             traceback.print_exc()
-            
-            # 调用回调函数
-            if callback:
-                callback(False)
-    
-    def save_config_async(self, config, success_callback=None, error_callback=None):
-        """
-        异步保存配置
-        
-        Args:
-            config: 配置字典，包含chrome_path, data_root和shortcuts
-            success_callback: 保存成功的回调函数
-            error_callback: 保存失败的回调函数
-        """
-        from .async_workers import ConfigSaveWorker
-        
-        # 创建并启动保存工作线程
-        self.save_worker = ConfigSaveWorker(self.config_file, config)
-        
-        # 连接信号
-        if success_callback:
-            self.save_worker.finished.connect(success_callback)
-        
-        if error_callback:
-            self.save_worker.error.connect(error_callback)
-        
-        # 启动线程
-        self.save_worker.start()
     
     def show_error_message(self, message):
         """显示错误消息"""

@@ -114,48 +114,4 @@ class MessageDialogs:
             QPushButton:pressed {{
                 background-color: #1567D3;
             }}
-        """
-
-def show_message(title, message, icon=None, parent=None):
-    """
-    通用消息显示函数
-    
-    Args:
-        title: 对话框标题
-        message: 消息内容
-        icon: 消息图标
-        parent: 父窗口
-    """
-    msg_box = QMessageBox(parent)
-    msg_box.setWindowTitle(title)
-    msg_box.setText(message)
-    
-    if icon:
-        msg_box.setIcon(icon)
-    
-    # 应用样式
-    msg_box.setStyleSheet(f"""
-        QMessageBox {{
-            background-color: {BACKGROUND_COLOR};
-        }}
-        QLabel {{
-            color: {TEXT_PRIMARY_COLOR};
-        }}
-        QPushButton {{
-            background-color: {PRIMARY_COLOR};
-            color: white;
-            border: none;
-            border-radius: 6px;
-            padding: 8px 16px;
-            min-width: 80px;
-            min-height: 30px;
-        }}
-        QPushButton:hover {{
-            background-color: #1C75E5;
-        }}
-        QPushButton:pressed {{
-            background-color: #1567D3;
-        }}
-    """)
-    
-    msg_box.exec() 
+        """ 
