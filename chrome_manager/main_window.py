@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
     QScrollArea, QGridLayout, QStackedWidget, QStyleFactory, QDialog, QFileDialog
 )
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont, QPixmap
 
 from .constants import (
     PRIMARY_COLOR, BACKGROUND_COLOR, TEXT_PRIMARY_COLOR, 
@@ -95,17 +95,33 @@ class ChromeShortcutManager(QMainWindow):
         """)
         
         sidebar_layout = QVBoxLayout(self.sidebar_widget)
-        sidebar_layout.setContentsMargins(16, 24, 16, 24)
-        sidebar_layout.setSpacing(8)
+        sidebar_layout.setContentsMargins(16, 16, 16, 24)  # 减小顶部边距
+        sidebar_layout.setSpacing(4)  # 减小间距
         
-        # 标题
-        title_label = QLabel("Chrome多实例管理器")
-        title_label.setFont(QFont(FONT_FAMILY, 14, QFont.Weight.Bold))
+        # Logo和标题容器
+        title_container = QVBoxLayout()
+        title_container.setSpacing(2)  # logo和标题之间的间距很小
+        
+        # Logo图片
+        logo_label = QLabel()
+        logo_label.setFixedSize(166, 136)  # 增大logo大小
+        logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        logo_path = os.path.join(os.path.dirname(__file__), "resources", "logo.png")
+        if os.path.exists(logo_path):
+            pixmap = QPixmap(logo_path)
+            logo_label.setPixmap(pixmap.scaled(166, 136, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+        title_container.addWidget(logo_label, 0, Qt.AlignmentFlag.AlignCenter)
+        
+        # 标题文字
+        title_label = QLabel("FourAir社区专用\nChrome多开管理器")  # 将标题分成两行
+        title_label.setFont(QFont(FONT_FAMILY, 12, QFont.Weight.Bold))  # 减小字体大小
         title_label.setStyleSheet(f"color: {TEXT_PRIMARY_COLOR};")
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_label.setWordWrap(True)
-        sidebar_layout.addWidget(title_label)
+        title_container.addWidget(title_label)
         
-        sidebar_layout.addSpacing(24)
+        sidebar_layout.addLayout(title_container)
+        sidebar_layout.addSpacing(16)  # 减小标题与菜单按钮之间的间距
         
         # 菜单按钮
         self.home_btn = self.create_menu_button("主页", True)
