@@ -5,10 +5,10 @@
 import os
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
-    QScrollArea, QGridLayout, QStackedWidget, QStyleFactory, QDialog, QFileDialog
+    QScrollArea, QGridLayout, QStackedWidget, QStyleFactory, QDialog, QFileDialog, QPushButton
 )
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont, QPixmap
+from PyQt6.QtCore import Qt, QUrl
+from PyQt6.QtGui import QFont, QPixmap, QDesktopServices, QIcon
 
 from .constants import (
     PRIMARY_COLOR, BACKGROUND_COLOR, TEXT_PRIMARY_COLOR, 
@@ -27,8 +27,15 @@ class ChromeShortcutManager(QMainWindow):
     def __init__(self):
         super().__init__()
         
-        # 设置窗口标题和固定大小
-        self.setWindowTitle("Chrome多实例快捷方式管理器")
+        # 设置窗口标题
+        self.setWindowTitle("FourAir社区专用Chrome多开管理器")
+        
+        # 设置窗口图标
+        icon_path = os.path.join(os.path.dirname(__file__), "resources", "logo.png")
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
+        
+        # 设置窗口固定大小
         self.setMinimumSize(1200, 800)
         self.setFixedSize(1200, 800)  # 设置固定大小
         
@@ -130,6 +137,62 @@ class ChromeShortcutManager(QMainWindow):
         sidebar_layout.addWidget(self.home_btn)
         sidebar_layout.addWidget(self.settings_btn)
         
+        # 添加弹性空间
+        sidebar_layout.addStretch()
+        
+        # 添加社区信息区域
+        community_container = QWidget()
+        community_layout = QVBoxLayout(community_container)
+        community_layout.setContentsMargins(10, 0, 10, 20)
+        community_layout.setSpacing(8)
+        
+        # 添加社区标题
+        community_title = QLabel("作者及社区链接")
+        community_title.setStyleSheet(f"""
+            color: {TEXT_SECONDARY_COLOR};
+            font-size: 16px;
+            font-weight: bold;
+            padding-bottom: 4px;
+        """)
+        community_layout.addWidget(community_title)
+        
+        # 社区链接样式
+        link_style = """
+            QPushButton {
+                text-align: left;
+                padding: 5px;
+                border: none;
+                color: #666;
+                font-size: 12px;
+            }
+            QPushButton:hover {
+                color: #1a73e8;
+            }
+        """
+        
+        # Discord链接
+        discord_btn = QPushButton("Discord社区")
+        discord_btn.setStyleSheet(link_style)
+        discord_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        discord_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://discord.gg/cTZCaYefPY")))
+        community_layout.addWidget(discord_btn)
+        
+        # GitHub链接
+        github_btn = QPushButton("GitHub仓库")
+        github_btn.setStyleSheet(link_style)
+        github_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        github_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/EXLF/browsers")))
+        community_layout.addWidget(github_btn)
+        
+        # Twitter链接
+        twitter_btn = QPushButton("Twitter")
+        twitter_btn.setStyleSheet(link_style)
+        twitter_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        twitter_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://x.com/xiao_yi24405")))
+        community_layout.addWidget(twitter_btn)
+        
+        sidebar_layout.addWidget(community_container)
+        
         # 版本信息
         sidebar_layout.addStretch()
         version_label = QLabel("Version 1.0")
@@ -191,7 +254,7 @@ class ChromeShortcutManager(QMainWindow):
         # 顶部操作栏
         top_bar = QHBoxLayout()
         
-        page_title = QLabel("我的浏览器")
+        page_title = QLabel("浏览器实例管理")
         page_title.setFont(QFont(FONT_FAMILY, 24, QFont.Weight.Bold))
         
         # 添加新实例按钮
