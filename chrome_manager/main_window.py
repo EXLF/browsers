@@ -52,7 +52,7 @@ class ChromeShortcutManager(QMainWindow):
         self.shortcut_manager = ShortcutManager(self)
         
         # 初始化变量
-        self.chrome_path = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+        self.chrome_path = self.find_chrome_path()  # 使用函数查找Chrome路径
         self.data_root = os.getcwd()  # 默认使用当前目录
         self.shortcuts_dir = self.shortcut_manager.desktop_path  # 默认使用桌面路径
         self.user_modified_data_root = False
@@ -66,6 +66,34 @@ class ChromeShortcutManager(QMainWindow):
         
         # 更新快捷方式列表
         self.update_browser_grid()
+
+    def find_chrome_path(self):
+        """查找Chrome安装路径"""
+        possible_paths = [
+            r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+            r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+            os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"),
+            os.path.expandvars(r"%PROGRAMFILES%\Google\Chrome\Application\chrome.exe"),
+            os.path.expandvars(r"%PROGRAMFILES(X86)%\Google\Chrome\Application\chrome.exe")
+        ]
+        
+        # 检查注册表
+        try:
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe") as key:
+                chrome_path = winreg.QueryValue(key, None)
+                if os.path.exists(chrome_path):
+                    return chrome_path
+        except:
+            pass
+            
+        # 检查可能的安装路径
+        for path in possible_paths:
+            if os.path.exists(path):
+                return path
+                
+        # 如果都找不到，返回默认路径
+        return r"C:\Program Files\Google\Chrome\Application\chrome.exe"
 
     def init_ui(self):
         """初始化UI"""
@@ -195,7 +223,7 @@ class ChromeShortcutManager(QMainWindow):
         
         # 版本信息
         sidebar_layout.addStretch()
-        version_label = QLabel("Version 1.0")
+        version_label = QLabel("Version 1.1")
         version_label.setStyleSheet(f"color: {TEXT_HINT_COLOR};")
         version_label.setFont(QFont(FONT_FAMILY, 8))
         sidebar_layout.addWidget(version_label)
@@ -483,6 +511,11 @@ class ChromeShortcutManager(QMainWindow):
         shortcuts_dir = self.shortcuts_dir_edit.text().strip()
         
         if chrome_path and data_root:
+            # 验证Chrome路径是否存在
+            if not os.path.exists(chrome_path):
+                self.message_dialogs.show_error_message("Chrome路径不存在，请检查路径是否正确")
+                return
+                
             self.chrome_path = chrome_path
             self.data_root = data_root
             self.user_modified_data_root = True
@@ -497,11 +530,11 @@ class ChromeShortcutManager(QMainWindow):
                 self.shortcuts_dir = self.shortcut_manager.desktop_path
                 self.shortcuts_dir_edit.setText(self.shortcuts_dir)
             
+            # 保存配置
             self.auto_save_config()
-            self.message_dialogs.show_success_message("设置已保存")
-            self.switch_page(0)  # 保存后返回主页
+            self.message_dialogs.show_info_message("设置已保存")
         else:
-            self.message_dialogs.show_error_message("Chrome路径和数据根目录不能为空！")
+            self.message_dialogs.show_error_message("请填写所有必要的设置项")
 
     def update_browser_grid(self):
         """更新浏览器网格"""
@@ -667,9 +700,11 @@ class ChromeShortcutManager(QMainWindow):
             'shortcuts_dir': self.shortcuts_dir,
             'shortcuts': self.shortcuts
         }
-        
         self.config_manager.save_config(config)
-
+        print(f"已保存配置 - Chrome路径: {self.chrome_path}")
+        print(f"已保存配置 - 数据根目录: {self.data_root}")
+        print(f"已保存配置 - 快捷方式目录: {self.shortcuts_dir}")
+        
     def delete_shortcut(self, name, data_dir):
         """删除单个快捷方式"""
         # 从快捷方式列表中删除

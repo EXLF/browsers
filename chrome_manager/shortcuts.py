@@ -8,6 +8,7 @@ import winshell
 from win32com.client import Dispatch
 from PyQt6.QtWidgets import QMessageBox
 from PyQt6.QtGui import QFont
+import subprocess
 
 from .constants import FONT_FAMILY, PRIMARY_COLOR, BACKGROUND_COLOR, TEXT_PRIMARY_COLOR
 
@@ -116,27 +117,44 @@ class ShortcutManager:
             traceback.print_exc()
             return False
     
-    def launch_browser(self, chrome_path, data_dir):
-        """
-        启动浏览器实例
-        
-        Args:
-            chrome_path: Chrome可执行文件路径
-            data_dir: 数据目录路径
-            
-        Returns:
-            bool: 是否启动成功
-        """
+    def launch_browser(self, shortcut):
+        """启动浏览器实例"""
         try:
-            import subprocess
-            subprocess.Popen([
-                chrome_path,
-                f'--user-data-dir="{data_dir}"'
-            ])
+            # 验证Chrome路径
+            if not os.path.exists(self.chrome_path):
+                QMessageBox.warning(
+                    self.parent,
+                    "错误",
+                    f"未找到Chrome浏览器，请在设置中指定正确的Chrome路径。\n当前路径: {self.chrome_path}"
+                )
+                return False
+                
+            # 确保数据目录存在
+            data_dir = os.path.join(self.data_root, shortcut.data_dir)
+            os.makedirs(data_dir, exist_ok=True)
+            
+            # 构建启动命令
+            cmd = [
+                f'"{self.chrome_path}"',  # 使用引号包裹路径，处理路径中的空格
+                f'--user-data-dir="{data_dir}"',  # 指定用户数据目录
+                '--no-first-run',  # 跳过首次运行设置
+                '--no-default-browser-check',  # 跳过默认浏览器检查
+            ]
+            
+            # 如果有其他启动参数，添加到命令中
+            if shortcut.extra_args:
+                cmd.extend(shortcut.extra_args.split())
+                
+            # 启动进程
+            subprocess.Popen(' '.join(cmd), shell=True)
             return True
+            
         except Exception as e:
-            self.show_error_message(f"启动Chrome失败：{str(e)}")
-            print(f"启动Chrome错误: {str(e)}")
+            QMessageBox.critical(
+                self.parent,
+                "启动错误",
+                f"启动Chrome时发生错误：\n{str(e)}\n\n请检查Chrome路径和数据目录设置是否正确。"
+            )
             return False
     
     def show_error_message(self, message):
