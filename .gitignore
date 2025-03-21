@@ -16,6 +16,7 @@ lib64/
 parts/
 sdist/
 var/
+wheels/
 *.egg-info/
 .installed.cfg
 *.egg
@@ -23,6 +24,17 @@ var/
 # PyInstaller
 *.manifest
 *.spec
+build/
+dist/
+
+# Inno Setup
+installer/
+setup.iss
+
+# 其他
+*.ico
+convert_icon.py
+build.py
 
 # 日志文件
 *.log
