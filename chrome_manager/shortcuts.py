@@ -79,7 +79,9 @@ class ShortcutManager:
             print(f"快捷方式已创建: {shortcut_path}")
             return True
         except Exception as e:
-            self.show_error_message(f"创建快捷方式失败：{str(e)}")
+            # 使用状态栏显示错误消息
+            if hasattr(self.main_window, 'statusBar'):
+                self.main_window.statusBar().showMessage(f"创建快捷方式失败：{str(e)}", 5000)
             print(f"创建快捷方式错误: {str(e)}")
             import traceback
             traceback.print_exc()
@@ -99,19 +101,28 @@ class ShortcutManager:
         try:
             # 删除快捷方式文件
             shortcut_path = os.path.join(self.shortcuts_dir, f"{name}.lnk")
+            print(f"尝试删除快捷方式文件: {shortcut_path}")
+            
             if os.path.exists(shortcut_path):
                 os.remove(shortcut_path)
-                print(f"快捷方式已删除: {shortcut_path}")
+                print(f"快捷方式文件删除成功: {shortcut_path}")
+            else:
+                print(f"快捷方式文件不存在: {shortcut_path}")
             
             # 删除数据目录
+            print(f"尝试删除数据目录: {data_dir}")
             if os.path.exists(data_dir) and os.path.isdir(data_dir):
                 import shutil
                 shutil.rmtree(data_dir)
-                print(f"数据目录已删除: {data_dir}")
+                print(f"数据目录删除成功: {data_dir}")
+            else:
+                print(f"数据目录不存在或不是目录: {data_dir}")
                 
             return True
         except Exception as e:
-            self.show_error_message(f"删除快捷方式失败：{str(e)}")
+            # 使用状态栏显示错误消息
+            if hasattr(self.main_window, 'statusBar'):
+                self.main_window.statusBar().showMessage(f"删除快捷方式失败：{str(e)}", 5000)
             print(f"删除快捷方式错误: {str(e)}")
             import traceback
             traceback.print_exc()
@@ -122,11 +133,9 @@ class ShortcutManager:
         try:
             # 验证Chrome路径
             if not os.path.exists(self.chrome_path):
-                QMessageBox.warning(
-                    self.parent,
-                    "错误",
-                    f"未找到Chrome浏览器，请在设置中指定正确的Chrome路径。\n当前路径: {self.chrome_path}"
-                )
+                # 使用状态栏显示错误消息
+                if hasattr(self.main_window, 'statusBar'):
+                    self.main_window.statusBar().showMessage(f"未找到Chrome浏览器，请在设置中指定正确的Chrome路径", 5000)
                 return False
                 
             # 确保数据目录存在
@@ -150,43 +159,14 @@ class ShortcutManager:
             return True
             
         except Exception as e:
-            QMessageBox.critical(
-                self.parent,
-                "启动错误",
-                f"启动Chrome时发生错误：\n{str(e)}\n\n请检查Chrome路径和数据目录设置是否正确。"
-            )
+            # 使用状态栏显示错误消息
+            if hasattr(self.main_window, 'statusBar'):
+                self.main_window.statusBar().showMessage(f"启动Chrome时发生错误：{str(e)}", 5000)
             return False
     
     def show_error_message(self, message):
         """显示错误消息"""
-        msg_box = QMessageBox(self.main_window)
-        msg_box.setIcon(QMessageBox.Icon.Critical)
-        msg_box.setWindowTitle("错误")
-        msg_box.setText(message)
-        msg_box.setFont(QFont(FONT_FAMILY, 9))
-        msg_box.setStyleSheet(f"""
-            QMessageBox {{
-                background-color: {BACKGROUND_COLOR};
-            }}
-            QLabel {{
-                color: {TEXT_PRIMARY_COLOR};
-                font-family: "{FONT_FAMILY}";
-            }}
-            QPushButton {{
-                background-color: {PRIMARY_COLOR};
-                color: white;
-                border: none;
-                border-radius: 6px;
-                padding: 8px 16px;
-                min-width: 80px;
-                min-height: 30px;
-                font-family: "{FONT_FAMILY}";
-            }}
-            QPushButton:hover {{
-                background-color: #1C75E5;
-            }}
-            QPushButton:pressed {{
-                background-color: #1567D3;
-            }}
-        """)
-        msg_box.exec() 
+        # 此方法已不再使用，改为使用状态栏显示消息
+        # 保留方法签名以防有代码调用，但内部实现改为使用状态栏
+        if hasattr(self.main_window, 'statusBar'):
+            self.main_window.statusBar().showMessage(message, 5000) 
