@@ -109,6 +109,14 @@ class ShortcutManager:
             else:
                 print(f"快捷方式文件不存在: {shortcut_path}")
             
+            # 检查是否有相关的Chrome进程在运行
+            if self.is_chrome_running(data_dir):
+                error_msg = f"无法删除数据目录 '{data_dir}'，因为相关的Chrome浏览器正在运行。请先关闭浏览器后再尝试删除。"
+                print(error_msg)
+                if hasattr(self.main_window, 'statusBar'):
+                    self.main_window.statusBar().showMessage(error_msg, 5000)
+                return False
+            
             # 删除数据目录
             print(f"尝试删除数据目录: {data_dir}")
             if os.path.exists(data_dir) and os.path.isdir(data_dir):
@@ -119,6 +127,12 @@ class ShortcutManager:
                 print(f"数据目录不存在或不是目录: {data_dir}")
                 
             return True
+        except PermissionError as e:
+            error_msg = f"删除失败，文件被占用：{str(e)}。请确保所有相关的Chrome浏览器已关闭。"
+            if hasattr(self.main_window, 'statusBar'):
+                self.main_window.statusBar().showMessage(error_msg, 5000)
+            print(f"删除快捷方式权限错误: {str(e)}")
+            return False
         except Exception as e:
             # 使用状态栏显示错误消息
             if hasattr(self.main_window, 'statusBar'):
@@ -127,6 +141,31 @@ class ShortcutManager:
             import traceback
             traceback.print_exc()
             return False
+    
+    def is_chrome_running(self, data_dir):
+        """
+        检查与特定数据目录相关的Chrome进程是否在运行
+        
+        Args:
+            data_dir: 数据目录路径
+            
+        Returns:
+            bool: 是否有相关Chrome进程在运行
+        """
+        try:
+            import psutil
+            for proc in psutil.process_iter(['name', 'cmdline']):
+                if proc.info['name'] and 'chrome' in proc.info['name'].lower():
+                    if proc.info['cmdline']:
+                        cmdline = ' '.join(proc.info['cmdline'])
+                        # 检查命令行中是否包含数据目录路径
+                        if data_dir.lower() in cmdline.lower():
+                            print(f"找到运行中的Chrome进程，使用数据目录: {data_dir}")
+                            return True
+            return False
+        except Exception as e:
+            print(f"检查Chrome进程时出错: {str(e)}")
+            return False  # 出错时保守地返回False
     
     def launch_browser(self, shortcut):
         """启动浏览器实例"""

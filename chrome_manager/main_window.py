@@ -1204,15 +1204,31 @@ class ChromeShortcutManager(QMainWindow):
                 "data_dir": data_dir
             }
             
-            self.shortcuts.append(shortcut)
-            self.update_browser_grid()
-            self.auto_save_config()
+            # 先添加到数据库
+            print(f"添加新实例到数据库: 名称={name}, 数据目录={data_dir}")
+            db_success = self.config_manager.db_manager.save_chrome_instance(shortcut)
+            print(f"数据库添加结果: {db_success}")
             
-            # 创建快捷方式
-            success = self.shortcut_manager.create_shortcut(name, data_dir, self.chrome_path)
-            if success:
-                self.statusBar().showMessage(f"Chrome实例 '{name}' 创建成功", 3000)  # 显示3秒
-            
+            if db_success:
+                self.shortcuts.append(shortcut)
+                
+                # 创建快捷方式
+                success = self.shortcut_manager.create_shortcut(name, data_dir, self.chrome_path)
+                if success:
+                    self.statusBar().showMessage(f"Chrome实例 '{name}' 创建成功", 3000)  # 显示3秒
+                
+                # 强制刷新实例列表 - 直接从数据库重新加载实例数据
+                print("正在从数据库重新加载实例列表...")
+                instances = self.config_manager.db_manager.get_all_chrome_instances()
+                print(f"从数据库加载的实例数: {len(instances)}")
+                self.shortcuts = instances
+                
+                # 更新界面和保存配置
+                self.update_browser_grid()
+                self.auto_save_config()
+            else:
+                self.statusBar().showMessage(f"Chrome实例 '{name}' 创建失败", 3000)  # 显示3秒
+    
     def load_config(self):
         """加载配置"""
         try:
@@ -1277,20 +1293,25 @@ class ChromeShortcutManager(QMainWindow):
         print(f"正在删除快捷方式: 名称={name}, 数据目录={data_dir}")
         print(f"删除前的快捷方式列表: {[s['name'] for s in self.shortcuts]}")
         
-        # 从快捷方式列表中删除
-        self.shortcuts = [s for s in self.shortcuts if s["name"] != name]
-        
-        print(f"删除后的快捷方式列表: {[s['name'] for s in self.shortcuts]}")
-        
-        # 删除实际文件
+        # 先尝试删除实际文件
         success = self.shortcut_manager.delete_shortcut(name, data_dir)
-        
         print(f"文件删除结果: {success}")
         
+        # 只有文件删除成功时，才继续进行数据库和内存数据的删除
         if success:
+            # 从快捷方式列表中删除
+            self.shortcuts = [s for s in self.shortcuts if s["name"] != name]
+            print(f"删除后的快捷方式列表: {[s['name'] for s in self.shortcuts]}")
+            
             # 从数据库中删除该实例
             db_success = self.config_manager.db_manager.delete_chrome_instance(name)
             print(f"从数据库删除实例结果: {db_success}")
+            
+            # 强制刷新实例列表 - 直接从数据库重新加载实例数据
+            print("正在从数据库重新加载实例列表...")
+            instances = self.config_manager.db_manager.get_all_chrome_instances()
+            print(f"从数据库加载的实例数: {len(instances)}")
+            self.shortcuts = instances
             
             # 更新界面
             self.update_browser_grid()
@@ -1299,6 +1320,9 @@ class ChromeShortcutManager(QMainWindow):
             self.auto_save_config()
             
             self.statusBar().showMessage(f"Chrome实例 '{name}' 已删除", 3000)  # 显示3秒
+        else:
+            # 删除失败时提醒用户
+            self.statusBar().showMessage(f"无法删除Chrome实例 '{name}'，请确保浏览器已关闭", 5000)  # 显示5秒
     
     def toggle_batch_mode(self):
         """切换批量操作模式"""
@@ -1339,29 +1363,51 @@ class ChromeShortcutManager(QMainWindow):
         
         # 执行删除
         deleted_count = 0
+        failed_count = 0
+        failed_names = []
+        
         for card in selected_cards:
             print(f"正在删除实例: {card.name}")
             
-            # 从快捷方式列表中删除
-            self.shortcuts = [s for s in self.shortcuts if s["name"] != card.name]
-            
-            # 删除实际文件
+            # 先尝试删除实际文件
             success = self.shortcut_manager.delete_shortcut(card.name, card.data_dir)
             print(f"  文件删除结果: {success}")
             
-            # 从数据库中删除
-            db_success = self.config_manager.db_manager.delete_chrome_instance(card.name)
-            print(f"  数据库删除结果: {db_success}")
-            
             if success:
+                # 从快捷方式列表中删除
+                self.shortcuts = [s for s in self.shortcuts if s["name"] != card.name]
+                
+                # 从数据库中删除
+                db_success = self.config_manager.db_manager.delete_chrome_instance(card.name)
+                print(f"  数据库删除结果: {db_success}")
+                
                 deleted_count += 1
+            else:
+                failed_count += 1
+                failed_names.append(card.name)
         
-        print(f"批量删除: 成功删除{deleted_count}个实例")
+        print(f"批量删除: 成功删除{deleted_count}个实例，失败{failed_count}个")
         
         if deleted_count > 0:
+            # 强制刷新实例列表 - 直接从数据库重新加载实例数据
+            print("批量删除后正在从数据库重新加载实例列表...")
+            instances = self.config_manager.db_manager.get_all_chrome_instances()
+            print(f"从数据库加载的实例数: {len(instances)}")
+            self.shortcuts = instances
+            
             self.update_browser_grid()
             self.auto_save_config()
-            self.statusBar().showMessage(f"已删除 {deleted_count} 个Chrome实例", 3000)
+            
+            message = f"已删除 {deleted_count} 个Chrome实例"
+            if failed_count > 0:
+                message += f"，{failed_count}个实例删除失败"
+            self.statusBar().showMessage(message, 5000)
+        elif failed_count > 0:
+            # 所有删除都失败
+            failure_list = ", ".join(failed_names[:3])
+            if len(failed_names) > 3:
+                failure_list += "等"
+            self.statusBar().showMessage(f"无法删除实例 {failure_list}，请确保浏览器已关闭", 5000)
         
         # 退出批量模式
         self.toggle_batch_mode()
