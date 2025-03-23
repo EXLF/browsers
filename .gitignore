@@ -1,10 +1,9 @@
-# Python
+# Python编译文件
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-env/
 build/
 develop-eggs/
 dist/
@@ -21,68 +20,39 @@ wheels/
 .installed.cfg
 *.egg
 
-# PyInstaller
+# PyInstaller生成的文件
 *.manifest
 *.spec
-build/
 dist/
+build/
 
-# Inno Setup
-installer/
-setup.iss
-
-# 其他
-*.ico
-convert_icon.py
-build.py
+# Inno Setup生成的文件
+Output/
+*.exe
+*.iss
 
 # 日志文件
 *.log
 
-# 单元测试
-htmlcov/
-.tox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*,cover
-.hypothesis/
-
-# 虚拟环境
+# 本地环境文件
+.env
+.venv
+env/
 venv/
 ENV/
+env.bak/
+venv.bak/
 
-# IDE文件
+# IDE相关文件
 .idea/
 .vscode/
 *.swp
 *.swo
 
-# 操作系统文件
+# 系统文件
 .DS_Store
 Thumbs.db
-ehthumbs.db
-Desktop.ini
+desktop.ini
 
 # 项目特定文件
-Profile*/
-*.db
-
-# 配置文件
-config.json
-
-# PyCharm
-.idea/
-
-# VS Code
-.vscode/
-
-# Windows
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-
-# Chrome数据目录
-Profile*/ 
+chrome_data/ 
