@@ -4,6 +4,8 @@
 
 import os
 import sys
+import time
+import psutil
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import QFontDatabase, QFont
 
@@ -37,3 +39,25 @@ def apply_font_to_app(app):
     
     # 确保所有控件都使用这个字体
     QApplication.setFont(font)
+
+def get_system_info():
+    """获取系统信息"""
+    info = {}
+    
+    # 获取CPU信息
+    info['cpu_count'] = psutil.cpu_count(logical=True)
+    info['cpu_physical'] = psutil.cpu_count(logical=False)
+    info['cpu_percent'] = psutil.cpu_percent(interval=0.1)
+    
+    # 获取内存信息
+    mem = psutil.virtual_memory()
+    info['memory_total'] = mem.total / (1024 * 1024 * 1024)  # GB
+    info['memory_available'] = mem.available / (1024 * 1024 * 1024)  # GB
+    info['memory_percent'] = mem.percent
+    
+    # 获取进程信息
+    process = psutil.Process()
+    info['process_cpu'] = process.cpu_percent(interval=0.1)
+    info['process_memory'] = process.memory_info().rss / (1024 * 1024)  # MB
+    
+    return info

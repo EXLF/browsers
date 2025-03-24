@@ -13,6 +13,14 @@ BORDER_COLOR = "#E0E0E0"
 TEXT_PRIMARY_COLOR = "#333333"
 TEXT_SECONDARY_COLOR = "#666666"
 TEXT_HINT_COLOR = "#999999"
+ACCENT_COLOR = "#2382FE"  # 突出显示颜色
+SIDEBAR_BACKGROUND = "#F8F9FA"  # 侧边栏背景颜色
 
 # 全局字体变量
-FONT_FAMILY = "Microsoft YaHei UI" if __import__('sys').platform == 'win32' else "Arial" 
+FONT_FAMILY = "Microsoft YaHei UI" if __import__('sys').platform == 'win32' else "Arial"
+
+# 窗口尺寸常量
+WINDOW_WIDTH = 1200
+WINDOW_HEIGHT = 800
+SIDEBAR_WIDTH = 200
+MENU_ITEM_HEIGHT = 40 
