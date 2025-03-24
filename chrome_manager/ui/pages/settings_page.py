@@ -114,6 +114,31 @@ class SettingsPage(QWidget):
         save_layout.addStretch()
         save_layout.addWidget(save_btn)
         
+        # 添加分隔线
+        settings_layout.addWidget(self._create_separator())
+        
+        # 添加更新部分标题
+        update_section_label = QLabel("软件更新")
+        update_section_label.setStyleSheet(f"color: {TEXT_PRIMARY_COLOR}; font-size: 16px;")
+        update_section_label.setFont(QFont(FONT_FAMILY, 12, QFont.Weight.Bold))
+        settings_layout.addWidget(update_section_label)
+        
+        # 添加更新按钮
+        update_btn_layout = QHBoxLayout()
+        update_btn = ModernButton("检查更新", accent=True)
+        update_btn.clicked.connect(self.main_window.check_app_updates)
+        update_btn_layout.addWidget(update_btn)
+        update_btn_layout.addStretch()
+        settings_layout.addLayout(update_btn_layout)
+        
+        # 添加说明
+        update_desc = QLabel("点击检查是否有新版本可用，发现新版本时将提供下载链接")
+        update_desc.setStyleSheet(f"color: {TEXT_SECONDARY_COLOR}; font-size: 12px;")
+        settings_layout.addWidget(update_desc)
+        
+        # 添加底部留白
+        settings_layout.addStretch()
+        
         content_layout.addStretch()
         content_layout.addLayout(save_layout)
         
@@ -191,3 +216,10 @@ class SettingsPage(QWidget):
         else:
             # 使用状态栏显示错误消息
             self.main_window.statusBar().showMessage("请填写所有必要的设置项", 5000) 
+
+    def _create_separator(self):
+        """创建分隔线"""
+        separator = QWidget()
+        separator.setFixedHeight(1)
+        separator.setStyleSheet("background-color: #E0E0E0;")
+        return separator 

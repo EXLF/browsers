@@ -10,7 +10,7 @@ import subprocess
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
     QStackedWidget, QStyleFactory, QDialog, QFrame, QPushButton,
-    QApplication, QStatusBar
+    QApplication, QStatusBar, QMessageBox
 )
 from PyQt6.QtCore import Qt, QUrl, QTimer, QThread, pyqtSignal
 from PyQt6.QtGui import QFont, QPixmap, QDesktopServices, QIcon
@@ -28,6 +28,7 @@ from .ui.message import MessageDialogs
 from .ui.pages import HomePage, SettingsPage, AccountPage, ScriptPage
 from .utils import get_system_info
 from .database_manager import DatabaseManager
+from .app_updater import AppUpdater
 
 class ChromeShortcutManager(QMainWindow):
     """Chrome多实例快捷方式管理器主窗口类"""
@@ -86,6 +87,14 @@ class ChromeShortcutManager(QMainWindow):
             self.auto_save_timer = QTimer(self)
             self.auto_save_timer.timeout.connect(self.auto_save_config)
             self.auto_save_timer.start(30000)  # 每30秒自动保存一次
+
+            # 初始化应用更新器
+            self.app_updater = AppUpdater(self)
+            self.app_updater.update_available.connect(self._on_app_update_available)
+            self.app_updater.update_complete.connect(self._on_app_update_complete)
+            
+            # 启动时检查更新
+            QTimer.singleShot(3000, self.check_app_updates)
         except Exception as e:
             print(f"初始化主窗口时出错: {str(e)}")
             import traceback
@@ -536,3 +545,31 @@ class ChromeShortcutManager(QMainWindow):
         print(f"进程CPU使用率: {info['process_cpu']}%")
         print(f"进程内存使用: {info['process_memory']:.1f}MB")
         print("==============\n") 
+
+    # 添加应用更新相关方法
+    def check_app_updates(self):
+        """检查应用更新"""
+        self.statusBar().showMessage("正在检查应用更新...")
+        self.app_updater.start()
+
+    def _on_app_update_available(self, latest_version):
+        """处理可用应用更新"""
+        reply = QMessageBox.question(
+            self,
+            "发现新版本",
+            f"发现新版本 v{latest_version}\n\n是否前往下载更新？",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            # 打开固定的下载链接
+            success, msg = self.app_updater.download_update()
+            if success:
+                self.statusBar().showMessage(msg, 5000)
+
+    def _on_app_update_complete(self, success, message):
+        """更新检查完成"""
+        if success:
+            self.statusBar().showMessage(message, 5000)
+        else:
+            print(f"更新检查失败: {message}")  # 只在控制台打印，不打扰用户 

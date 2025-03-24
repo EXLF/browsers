@@ -25,6 +25,7 @@ wheels/
 *.spec
 dist/
 build/
+py_build.py
 
 # Inno Setup生成的文件
 Output/
