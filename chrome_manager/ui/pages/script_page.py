@@ -2,14 +2,15 @@
 脚本插件页面模块，实现脚本和插件管理功能
 """
 
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea
-from PyQt6.QtCore import Qt, QUrl
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea, QGridLayout, QMessageBox
+from PyQt6.QtCore import Qt, QUrl, QTimer
 from PyQt6.QtGui import QFont, QDesktopServices
 
 from ...constants import (
     TEXT_PRIMARY_COLOR, TEXT_SECONDARY_COLOR, TEXT_HINT_COLOR, FONT_FAMILY
 )
 from ..components import ModernButton
+from ...script_updater import ScriptUpdater
 
 class ScriptPage(QWidget):
     """脚本插件页面类"""
@@ -70,7 +71,7 @@ class ScriptPage(QWidget):
         script_content_widget = QWidget()
         script_content_layout = QVBoxLayout(script_content_widget)
         script_content_layout.setContentsMargins(0, 0, 0, 0)
-        script_content_layout.setSpacing(10)  # 减小卡片间距
+        script_content_layout.setSpacing(16)  # 调整间距
         
         # 分类标题
         category_title = QLabel("热门脚本插件")
@@ -78,45 +79,43 @@ class ScriptPage(QWidget):
         category_title.setStyleSheet("color: #333333;")
         script_content_layout.addWidget(category_title)
         
-        # 热门脚本卡片 - 使用用户提供的项目
-        script_card1 = self.create_script_card(
+        # 创建网格布局容器用于脚本卡片
+        self.scripts_grid = QGridLayout()
+        self.scripts_grid.setSpacing(16)  # 设置卡片之间的间距
+        
+        # 添加脚本卡片到网格布局
+        # 第一行
+        self.scripts_grid.addWidget(self.create_script_card(
             "Monad",
             "一键交互、自动领水、一键质押",
             "v2.1.0",
             "https://example.com/monad"
-        )
-        script_content_layout.addWidget(script_card1)
+        ), 0, 0)  # 行0，列0
         
-        script_card2 = self.create_script_card(
+        self.scripts_grid.addWidget(self.create_script_card(
             "POD Network",
             "一键交互、自动领水",
             "v1.5.2",
             "https://example.com/pod-network"
-        )
-        script_content_layout.addWidget(script_card2)
+        ), 0, 1)  # 行0，列1
         
-        # 第二个分类
-        category_title2 = QLabel("工具类插件")
-        category_title2.setFont(QFont(FONT_FAMILY, 16, QFont.Weight.Bold))
-        category_title2.setStyleSheet("color: #333333; margin-top: 16px;")
-        script_content_layout.addWidget(category_title2)
-        
-        # 工具插件卡片 - 使用用户提供的项目
-        script_card3 = self.create_script_card(
+        # 第二行
+        self.scripts_grid.addWidget(self.create_script_card(
             "Voltix AI",
             "多开挂机",
             "v3.0.1",
             "https://example.com/voltix-ai"
-        )
-        script_content_layout.addWidget(script_card3)
+        ), 1, 0)  # 行1，列0
         
-        script_card4 = self.create_script_card(
+        self.scripts_grid.addWidget(self.create_script_card(
             "PublicAi",
             "自动交互",
             "v2.4.3",
             "https://example.com/public-ai"
-        )
-        script_content_layout.addWidget(script_card4)
+        ), 1, 1)  # 行1，列1
+        
+        # 添加网格布局到主布局
+        script_content_layout.addLayout(self.scripts_grid)
         
         # 添加提交新脚本的提示
         submit_container = QWidget()
@@ -138,6 +137,27 @@ class ScriptPage(QWidget):
         
         scroll_area.setWidget(script_content_widget)
         script_layout.addWidget(scroll_area)
+        
+        # 添加检查更新按钮
+        self.refresh_btn = ModernButton("检查脚本更新", accent=False)
+        self.refresh_btn.setFixedWidth(120)
+        self.refresh_btn.clicked.connect(self._check_updates)
+        
+        # 创建按钮布局
+        button_container = QWidget()
+        button_layout = QHBoxLayout(button_container)
+        button_layout.setContentsMargins(0, 8, 0, 8)
+        button_layout.addStretch()
+        button_layout.addWidget(self.refresh_btn)
+        script_layout.addWidget(button_container)
+        
+        # 初始化脚本更新器
+        self.script_updater = ScriptUpdater(self.main_window)
+        self.script_updater.update_available.connect(self._on_updates_available)
+        self.script_updater.update_complete.connect(self._on_update_complete)
+        
+        # 第一次打开时自动检查更新
+        QTimer.singleShot(1000, self._check_updates)
     
     def create_script_card(self, name, description, version, url):
         """创建脚本卡片"""
@@ -146,25 +166,24 @@ class ScriptPage(QWidget):
             QWidget {
                 background-color: white;
                 border: 1px solid #E0E0E0;
-                border-radius: 4px;
+                border-radius: 8px;
             }
             QWidget:hover {
                 border-color: #BBBBBB;
+                border-width: 2px;
             }
         """)
-        card.setFixedHeight(64)  # 进一步降低卡片高度
+        # 不再固定高度，让卡片根据内容自适应
+        card.setMinimumWidth(240)
+        card.setMinimumHeight(120)
         
-        card_layout = QHBoxLayout(card)
-        card_layout.setContentsMargins(16, 8, 16, 8)  # 减小内边距使卡片更紧凑
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(16, 12, 16, 12)  # 调整内边距
         
-        # 左侧信息区
-        info_layout = QVBoxLayout()
-        info_layout.setSpacing(2)  # 减小间距
-        
-        # 脚本名称和版本
+        # 脚本名称和版本放在标题区域
         title_layout = QHBoxLayout()
         script_title = QLabel(name)
-        script_title.setFont(QFont(FONT_FAMILY, 13, QFont.Weight.Bold))
+        script_title.setFont(QFont(FONT_FAMILY, 14, QFont.Weight.Bold))
         script_title.setStyleSheet("color: #1a73e8; border: none;")
         
         version_label = QLabel(version)
@@ -174,21 +193,106 @@ class ScriptPage(QWidget):
         title_layout.addWidget(version_label)
         title_layout.addStretch()
         
-        info_layout.addLayout(title_layout)
+        card_layout.addLayout(title_layout)
         
         # 脚本描述
         desc_label = QLabel(description)
         desc_label.setWordWrap(True)
-        desc_label.setStyleSheet("color: #555555; font-size: 12px; border: none;")
-        info_layout.addWidget(desc_label)
+        desc_label.setStyleSheet("color: #555555; font-size: 12px; border: none; margin-top: 4px;")
+        card_layout.addWidget(desc_label)
         
-        card_layout.addLayout(info_layout, 1)  # 添加伸缩因子
+        # 添加空间，使布局更美观
+        card_layout.addStretch()
         
-        # 右侧下载按钮（改为待上传按钮并置灰）
+        # 下载按钮放在卡片底部
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        
         download_btn = ModernButton("待上传", accent=True)
-        download_btn.setFixedWidth(70)  # 略微加宽按钮以适应"待上传"文字
-        download_btn.setFixedHeight(28)  # 保持按钮高度
+        download_btn.setFixedWidth(70)
+        download_btn.setFixedHeight(28)
         download_btn.setEnabled(False)  # 设置按钮为禁用状态（置灰）
-        card_layout.addWidget(download_btn)
+        button_layout.addWidget(download_btn)
         
-        return card 
+        card_layout.addLayout(button_layout)
+        
+        return card
+        
+    def _check_updates(self):
+        """检查脚本更新"""
+        self.refresh_btn.setEnabled(False)
+        self.refresh_btn.setText("正在检查...")
+        self.main_window.statusBar().showMessage("正在检查脚本更新...")
+        self.script_updater.start()
+
+    def _on_updates_available(self, scripts):
+        """处理可用脚本"""
+        # 恢复按钮状态
+        self.refresh_btn.setEnabled(True)
+        self.refresh_btn.setText("检查脚本更新")
+        
+        if not scripts:
+            return
+        
+        # 清除现有脚本卡片
+        while self.scripts_grid.count():
+            item = self.scripts_grid.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        
+        # 添加脚本卡片
+        row, col = 0, 0
+        for script in scripts:
+            card = self.create_script_card(
+                script["name"],
+                script["description"],
+                script["version"],
+                script.get("download_url", "")
+            )
+            
+            # 修改下载按钮文本和状态
+            for child in card.findChildren(ModernButton):
+                if "待上传" in child.text():
+                    child.setText("下载")
+                    child.setEnabled(True)
+                    # 使用lambda时需要通过默认参数s=script捕获当前值
+                    child.clicked.connect(lambda checked, s=script: self._download_script(s))
+            
+            self.scripts_grid.addWidget(card, row, col)
+            
+            # 更新行列位置
+            col += 1
+            if col > 1:  # 每行最多2个卡片
+                col = 0
+                row += 1
+
+    def _download_script(self, script):
+        """处理脚本下载请求"""
+        disk_type = script.get("download_type", "unknown")
+        
+        message = f"您将跳转到云盘下载 {script['name']} 脚本"
+        
+        reply = QMessageBox.question(
+            self,
+            "下载确认",
+            message,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            success, msg = self.script_updater.download_script(script)
+            if success:
+                self.main_window.statusBar().showMessage(msg, 5000)
+            else:
+                QMessageBox.warning(self, "下载失败", msg)
+
+    def _on_update_complete(self, success, message):
+        """更新检查完成"""
+        # 恢复按钮状态
+        self.refresh_btn.setEnabled(True)
+        self.refresh_btn.setText("检查脚本更新")
+        
+        if success:
+            self.main_window.statusBar().showMessage(message, 5000)
+        else:
+            QMessageBox.warning(self, "更新检查失败", message) 
