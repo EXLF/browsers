@@ -55,4 +55,15 @@ Thumbs.db
 desktop.ini
 
 # 项目特定文件
-chrome_data/ 
+chrome_data/
+
+# 签名相关文件
+private_key.pem
+public_key.pem
+scripts/generate_rsa_signature.py
+scripts/generate_metadata_signature.py
+scripts/scripts_metadata_template.json
+
+# 本地测试用的元数据文件
+scripts_metadata.json
+scripts/scripts_metadata.json 

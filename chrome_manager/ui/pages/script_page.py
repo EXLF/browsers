@@ -20,6 +20,15 @@ class ScriptPage(QWidget):
         super().__init__(parent)
         self.main_window = parent
         self._init_ui()
+        
+        # 创建定时器，每5分钟自动检查一次更新
+        self.auto_update_timer = QTimer(self)
+        self.auto_update_timer.setInterval(5 * 60 * 1000)  # 5分钟
+        self.auto_update_timer.timeout.connect(self._check_updates)
+        self.auto_update_timer.start()
+        
+        # 首次打开时延迟1秒自动检查更新
+        QTimer.singleShot(1000, self._check_updates)
     
     def _init_ui(self):
         """初始化UI"""
@@ -83,37 +92,6 @@ class ScriptPage(QWidget):
         self.scripts_grid = QGridLayout()
         self.scripts_grid.setSpacing(16)  # 设置卡片之间的间距
         
-        # 添加脚本卡片到网格布局
-        # 第一行
-        self.scripts_grid.addWidget(self.create_script_card(
-            "Monad",
-            "一键交互、自动领水、一键质押",
-            "v2.1.0",
-            "https://example.com/monad"
-        ), 0, 0)  # 行0，列0
-        
-        self.scripts_grid.addWidget(self.create_script_card(
-            "POD Network",
-            "一键交互、自动领水",
-            "v1.5.2",
-            "https://example.com/pod-network"
-        ), 0, 1)  # 行0，列1
-        
-        # 第二行
-        self.scripts_grid.addWidget(self.create_script_card(
-            "Voltix AI",
-            "多开挂机",
-            "v3.0.1",
-            "https://example.com/voltix-ai"
-        ), 1, 0)  # 行1，列0
-        
-        self.scripts_grid.addWidget(self.create_script_card(
-            "PublicAi",
-            "自动交互",
-            "v2.4.3",
-            "https://example.com/public-ai"
-        ), 1, 1)  # 行1，列1
-        
         # 添加网格布局到主布局
         script_content_layout.addLayout(self.scripts_grid)
         
@@ -155,9 +133,6 @@ class ScriptPage(QWidget):
         self.script_updater = ScriptUpdater(self.main_window)
         self.script_updater.update_available.connect(self._on_updates_available)
         self.script_updater.update_complete.connect(self._on_update_complete)
-        
-        # 第一次打开时自动检查更新
-        QTimer.singleShot(1000, self._check_updates)
     
     def create_script_card(self, name, description, version, url):
         """创建脚本卡片"""
@@ -220,6 +195,10 @@ class ScriptPage(QWidget):
         
     def _check_updates(self):
         """检查脚本更新"""
+        # 如果按钮已经禁用，说明正在检查更新，跳过这次检查
+        if not self.refresh_btn.isEnabled():
+            return
+            
         self.refresh_btn.setEnabled(False)
         self.refresh_btn.setText("正在检查...")
         self.main_window.statusBar().showMessage("正在检查脚本更新...")
@@ -231,14 +210,25 @@ class ScriptPage(QWidget):
         self.refresh_btn.setEnabled(True)
         self.refresh_btn.setText("检查脚本更新")
         
-        if not scripts:
-            return
-        
         # 清除现有脚本卡片
         while self.scripts_grid.count():
             item = self.scripts_grid.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
+        
+        if not scripts:
+            # 添加提示信息
+            no_scripts_label = QLabel("暂无可用脚本，请稍后再试")
+            no_scripts_label.setStyleSheet(f"""
+                color: {TEXT_SECONDARY_COLOR};
+                font-size: 14px;
+                padding: 20px;
+                background-color: #f5f5f5;
+                border-radius: 8px;
+            """)
+            no_scripts_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.scripts_grid.addWidget(no_scripts_label, 0, 0, 1, 2)  # 跨越两列显示
+            return
         
         # 添加脚本卡片
         row, col = 0, 0
@@ -255,7 +245,6 @@ class ScriptPage(QWidget):
                 if "待上传" in child.text():
                     child.setText("下载")
                     child.setEnabled(True)
-                    # 使用lambda时需要通过默认参数s=script捕获当前值
                     child.clicked.connect(lambda checked, s=script: self._download_script(s))
             
             self.scripts_grid.addWidget(card, row, col)
