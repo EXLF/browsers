@@ -10,7 +10,7 @@ import subprocess
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
     QStackedWidget, QStyleFactory, QDialog, QFrame, QPushButton,
-    QApplication, QStatusBar, QMessageBox
+    QApplication, QStatusBar, QMessageBox, QScrollArea
 )
 from PyQt6.QtCore import Qt, QUrl, QTimer, QThread, pyqtSignal
 from PyQt6.QtGui import QFont, QPixmap, QDesktopServices, QIcon
@@ -19,7 +19,7 @@ from .constants import (
     PRIMARY_COLOR, BACKGROUND_COLOR, TEXT_PRIMARY_COLOR, 
     TEXT_SECONDARY_COLOR, TEXT_HINT_COLOR, FONT_FAMILY,
     SIDEBAR_WIDTH, SIDEBAR_BACKGROUND, MENU_ITEM_HEIGHT,
-    WINDOW_WIDTH, WINDOW_HEIGHT, ACCENT_COLOR
+    WINDOW_WIDTH, WINDOW_HEIGHT, ACCENT_COLOR, get_screen_size
 )
 from .config import ConfigManager
 from .shortcuts import ShortcutManager
@@ -45,12 +45,20 @@ class ChromeShortcutManager(QMainWindow):
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
         
-        # 设置窗口固定大小
-        self.setMinimumSize(WINDOW_WIDTH, WINDOW_HEIGHT)
-        self.setFixedSize(WINDOW_WIDTH, WINDOW_HEIGHT)  # 设置固定大小
+        # 获取当前屏幕大小
+        screen_width, screen_height = get_screen_size()
         
-        # 允许最大化按钮
+        # 设置窗口大小，允许调整大小
+        self.setMinimumSize(800, 600)  # 最小尺寸
+        self.resize(WINDOW_WIDTH, WINDOW_HEIGHT)  # 初始大小
+        
+        # 如果屏幕分辨率较低，则限制最大窗口大小
+        if screen_width < 1366 or screen_height < 768:
+            self.setMaximumSize(screen_width, screen_height)
+        
+        # 允许最大化按钮和调整大小
         self.setWindowFlags(self.windowFlags() | Qt.WindowType.WindowMaximizeButtonHint)
+        self.setWindowFlag(Qt.WindowType.MSWindowsFixedSizeDialogHint, False)
         
         # 初始化消息对话框工具类
         self.message_dialogs = MessageDialogs(self)
@@ -156,6 +164,9 @@ class ChromeShortcutManager(QMainWindow):
         # 设置布局比例
         main_layout.setStretch(0, 0)  # 左侧菜单栏不伸缩
         main_layout.setStretch(1, 1)  # 右侧内容区自适应
+        
+        # 创建状态栏
+        self.statusBar().showMessage("准备就绪", 3000)
 
     def setup_sidebar(self):
         """设置左侧菜单栏"""
@@ -307,24 +318,58 @@ class ChromeShortcutManager(QMainWindow):
     def setup_content_area(self):
         """设置右侧内容区"""
         self.content_stack = QStackedWidget()
-        self.content_stack.setContentsMargins(0, 0, 0, 0)
         self.content_stack.setStyleSheet(f"background-color: {BACKGROUND_COLOR};")
         
-        # 主页（浏览器实例管理）
+        # 主页 - 使用滚动区域包装
         self.home_page = HomePage(self)
-        self.content_stack.addWidget(self.home_page)
+        home_scroll = QScrollArea()
+        home_scroll.setWidgetResizable(True)
+        home_scroll.setWidget(self.home_page)
+        home_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        home_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        home_scroll.setStyleSheet("QScrollArea {background-color: transparent; border: none;}")
+        self.content_stack.addWidget(home_scroll)
         
-        # 账号管理页面
+        # 账号管理页面 - 使用滚动区域包装
         self.account_page = AccountPage(self)
-        self.content_stack.addWidget(self.account_page)
+        account_scroll = QScrollArea()
+        account_scroll.setWidgetResizable(True)
+        account_scroll.setWidget(self.account_page)
+        account_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        account_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        account_scroll.setStyleSheet("QScrollArea {background-color: transparent; border: none;}")
+        self.content_stack.addWidget(account_scroll)
         
-        # 设置页面
-        self.settings_page = SettingsPage(self)
-        self.content_stack.addWidget(self.settings_page)
-
-        # 脚本插件页面
+        # 脚本插件页面 - 使用滚动区域包装
         self.script_page = ScriptPage(self)
-        self.content_stack.addWidget(self.script_page)
+        script_scroll = QScrollArea()
+        script_scroll.setWidgetResizable(True)
+        script_scroll.setWidget(self.script_page)
+        script_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        script_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        script_scroll.setStyleSheet("QScrollArea {background-color: transparent; border: none;}")
+        self.content_stack.addWidget(script_scroll)
+        
+        # 设置页面 - 使用滚动区域包装
+        self.settings_page = SettingsPage(self)
+        settings_scroll = QScrollArea()
+        settings_scroll.setWidgetResizable(True)
+        settings_scroll.setWidget(self.settings_page)
+        settings_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        settings_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        settings_scroll.setStyleSheet("QScrollArea {background-color: transparent; border: none;}")
+        self.content_stack.addWidget(settings_scroll)
+        
+        # 设置默认页面
+        self.content_stack.setCurrentIndex(0)
+        
+        # 注册页面更新方法
+        self.page_update_methods = [
+            self.home_page.update_browser_grid,
+            self.account_page.update_cards,
+            self.script_page.update,
+            self.settings_page.update_ui
+        ]
 
     def switch_page(self, index):
         """切换页面"""

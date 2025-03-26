@@ -5,9 +5,10 @@
 import os
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
-    QFileDialog
+    QFileDialog, QScrollArea
 )
 from PyQt6.QtGui import QFont
+from PyQt6.QtCore import Qt
 
 from ...constants import (
     TEXT_PRIMARY_COLOR, TEXT_SECONDARY_COLOR, TEXT_HINT_COLOR, FONT_FAMILY
@@ -25,24 +26,25 @@ class SettingsPage(QWidget):
     
     def _init_ui(self):
         """初始化UI"""
+        # 主布局使用合理的边距，适应不同屏幕尺寸
         settings_layout = QVBoxLayout(self)
-        settings_layout.setContentsMargins(32, 32, 32, 32)
-        settings_layout.setSpacing(24)
+        settings_layout.setContentsMargins(24, 24, 24, 24)  # 减少边距
+        settings_layout.setSpacing(16)  # 减少间距
         
         # 顶部标题
         page_title = QLabel("全局设置")
-        page_title.setFont(QFont(FONT_FAMILY, 24, QFont.Weight.Bold))
+        page_title.setFont(QFont(FONT_FAMILY, 20, QFont.Weight.Bold))  # 减小标题字体
         settings_layout.addWidget(page_title)
         
         # 设置内容区域
         content_widget = QWidget()
         content_layout = QVBoxLayout(content_widget)
-        content_layout.setContentsMargins(0, 24, 0, 0)
-        content_layout.setSpacing(24)
+        content_layout.setContentsMargins(0, 16, 0, 0)  # 减少边距
+        content_layout.setSpacing(16)  # 减少间距
         
         # Chrome路径设置
         chrome_layout = QVBoxLayout()
-        chrome_layout.setSpacing(8)
+        chrome_layout.setSpacing(4)  # 减少间距
         
         chrome_label = QLabel("Chrome路径")
         chrome_label.setStyleSheet(f"color: {TEXT_SECONDARY_COLOR}; font-size: 14px;")
@@ -50,7 +52,7 @@ class SettingsPage(QWidget):
         chrome_input_layout = QHBoxLayout()
         self.chrome_path_edit = ModernLineEdit(self.main_window.chrome_path)
         browse_chrome_btn = ModernButton("浏览...")
-        browse_chrome_btn.setFixedWidth(90)
+        browse_chrome_btn.setFixedWidth(80)  # 减小按钮宽度
         browse_chrome_btn.clicked.connect(self.browse_chrome)
         
         chrome_input_layout.addWidget(self.chrome_path_edit)
@@ -63,7 +65,7 @@ class SettingsPage(QWidget):
         
         # 数据根目录设置
         data_layout = QVBoxLayout()
-        data_layout.setSpacing(8)
+        data_layout.setSpacing(4)  # 减少间距
         
         data_label = QLabel("数据根目录")
         data_label.setStyleSheet(f"color: {TEXT_SECONDARY_COLOR}; font-size: 14px;")
@@ -71,7 +73,7 @@ class SettingsPage(QWidget):
         data_input_layout = QHBoxLayout()
         self.data_root_edit = ModernLineEdit(self.main_window.data_root)
         browse_data_btn = ModernButton("浏览...")
-        browse_data_btn.setFixedWidth(90)
+        browse_data_btn.setFixedWidth(80)  # 减小按钮宽度
         browse_data_btn.clicked.connect(self.browse_data_root)
         
         data_input_layout.addWidget(self.data_root_edit)
@@ -84,7 +86,7 @@ class SettingsPage(QWidget):
         
         # 快捷方式保存路径设置
         shortcuts_layout = QVBoxLayout()
-        shortcuts_layout.setSpacing(8)
+        shortcuts_layout.setSpacing(4)  # 减少间距
         
         shortcuts_label = QLabel("快捷方式保存路径")
         shortcuts_label.setStyleSheet(f"color: {TEXT_SECONDARY_COLOR}; font-size: 14px;")
@@ -92,7 +94,7 @@ class SettingsPage(QWidget):
         shortcuts_input_layout = QHBoxLayout()
         self.shortcuts_dir_edit = ModernLineEdit(self.main_window.shortcuts_dir)
         browse_shortcuts_btn = ModernButton("浏览...")
-        browse_shortcuts_btn.setFixedWidth(90)
+        browse_shortcuts_btn.setFixedWidth(80)  # 减小按钮宽度
         browse_shortcuts_btn.clicked.connect(self.browse_shortcuts_dir)
         
         shortcuts_input_layout.addWidget(self.shortcuts_dir_edit)
@@ -107,12 +109,20 @@ class SettingsPage(QWidget):
         
         content_layout.addLayout(shortcuts_layout)
         
+        # 添加底部按钮区域
+        buttons_layout = QVBoxLayout()
+        buttons_layout.setContentsMargins(0, 8, 0, 8)
+        
         # 保存按钮
-        save_layout = QHBoxLayout()
+        save_btn_layout = QHBoxLayout()
         save_btn = ModernButton("保存设置", accent=True)
         save_btn.clicked.connect(self.save_settings)
-        save_layout.addStretch()
-        save_layout.addWidget(save_btn)
+        save_btn.setFixedWidth(120)  # 设置固定宽度
+        save_btn_layout.addWidget(save_btn)
+        save_btn_layout.addStretch()
+        buttons_layout.addLayout(save_btn_layout)
+        
+        content_layout.addLayout(buttons_layout)
         
         # 添加分隔线
         settings_layout.addWidget(self._create_separator())
@@ -127,6 +137,7 @@ class SettingsPage(QWidget):
         update_btn_layout = QHBoxLayout()
         update_btn = ModernButton("检查更新", accent=True)
         update_btn.clicked.connect(self.main_window.check_app_updates)
+        update_btn.setFixedWidth(120)  # 设置固定宽度
         update_btn_layout.addWidget(update_btn)
         update_btn_layout.addStretch()
         settings_layout.addLayout(update_btn_layout)
@@ -136,13 +147,11 @@ class SettingsPage(QWidget):
         update_desc.setStyleSheet(f"color: {TEXT_SECONDARY_COLOR}; font-size: 12px;")
         settings_layout.addWidget(update_desc)
         
-        # 添加底部留白
-        settings_layout.addStretch()
-        
-        content_layout.addStretch()
-        content_layout.addLayout(save_layout)
-        
+        # 添加主内容区
         settings_layout.addWidget(content_widget)
+        
+        # 最后添加弹性空间，确保滚动区域有足够空间
+        settings_layout.addStretch()
     
     def update_ui(self):
         """更新UI状态，重新加载最新设置"""

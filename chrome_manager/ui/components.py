@@ -6,10 +6,10 @@ from PyQt6.QtWidgets import QLineEdit, QPushButton, QWidget, QLabel
 from PyQt6.QtCore import Qt, QSize, QRectF
 from PyQt6.QtGui import QPainter, QPainterPath, QColor
 
-from ..constants import (
+from chrome_manager.constants import (
     PRIMARY_COLOR, BACKGROUND_COLOR, BORDER_COLOR, TEXT_PRIMARY_COLOR, 
     TEXT_HINT_COLOR, SURFACE_COLOR, FONT_FAMILY, TEXT_SECONDARY_COLOR,
-    SUCCESS_COLOR, DANGER_COLOR, WARNING_COLOR
+    SUCCESS_COLOR, DANGER_COLOR, WARNING_COLOR, get_screen_size
 )
 
 class ModernLineEdit(QLineEdit):
@@ -46,7 +46,15 @@ class ModernButton(QPushButton):
         super().__init__(text, *args, **kwargs)
         self.accent = accent
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setMinimumHeight(36)
+        
+        # 根据屏幕分辨率调整按钮高度
+        screen_width, screen_height = get_screen_size()
+        
+        # 在低分辨率屏幕上使用更小的按钮高度
+        if screen_height <= 768:
+            self.setMinimumHeight(30)  # 小屏幕使用更小的高度
+        else:
+            self.setMinimumHeight(36)  # 大屏幕使用标准高度
         
         # 设置图标
         if icon:

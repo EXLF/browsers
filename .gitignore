@@ -22,15 +22,13 @@ wheels/
 
 # PyInstaller生成的文件
 *.manifest
-*.spec
+# *.spec
 dist/
 build/
-py_build.py
 
 # Inno Setup生成的文件
 Output/
 *.exe
-*.iss
 
 # 日志文件
 *.log
