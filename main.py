@@ -7,16 +7,25 @@ Chrome多实例快捷方式管理器 - 主程序入口
 import os
 import sys
 import traceback
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtWidgets import QApplication, QMessageBox
 from PyQt6.QtCore import Qt
 
 from chrome_manager.main_window import ChromeShortcutManager
-from chrome_manager.utils import apply_font_to_app
+from chrome_manager.utils import apply_font_to_app, check_os_compatibility
 import chrome_manager.constants as constants
 
 def main():
     """主程序入口函数"""
     try:
+        # 检查系统兼容性
+        compatible, error_msg = check_os_compatibility()
+        if not compatible:
+            # 创建临时应用程序对象来显示错误消息
+            app = QApplication(sys.argv)
+            QMessageBox.critical(None, "系统兼容性错误", 
+                                f"无法启动应用程序：\n{error_msg}\n\n请确保您的系统满足运行要求。")
+            sys.exit(1)
+            
         # 启用高DPI支持
         QApplication.setHighDpiScaleFactorRoundingPolicy(
             Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)

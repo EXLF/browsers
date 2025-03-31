@@ -367,54 +367,45 @@ class HomePage(QWidget):
             # 所有删除已完成
             self.delete_timer.stop()
             
-            # 恢复UI可用性
+            # 终止操作后启用UI
             self.main_window.setEnabled(True)
             
-            # 保存配置
-            self.main_window.auto_save_config()
+            # 通知用户已完成
+            self.main_window.statusBar().showMessage(f"成功删除 {self.delete_count} 个实例", 3000)
             
-            # 最终更新界面
-            log_time("更新最终UI状态")
-            self.update_browser_grid()
+            # 最后，确保所有的更改都被保存到数据库中
+            # 这一步很重要，因为之前的delete_shortcut操作可能没有正确更新内存中的实例列表
+            # 使用定时器，确保所有UI事件都被处理
+            QTimer.singleShot(800, self._sync_after_batch_delete)
             
-            # 显示最终状态
-            if self.delete_count > 0:
-                self.main_window.statusBar().showMessage(f"成功删除了 {self.delete_count} 个实例", 5000)
-            else:
-                self.main_window.statusBar().showMessage("没有实例被删除", 5000)
-            
-            log_time("批量删除操作完成")
             return
         
-        # 获取当前要处理的卡片
+        # 获取当前卡片
         card = self.cards_to_delete[self.delete_index]
         name = card.name
-        current_index = self.delete_index + 1
-        total_count = len(self.cards_to_delete)
+        data_dir = card.data_dir
+        log_time(f"批量删除第 {self.delete_index+1}/{len(self.cards_to_delete)} 个: {name}")
         
-        log_time(f"开始删除第 {current_index}/{total_count} 个实例: {name}")
-        self.main_window.statusBar().showMessage(f"正在删除 ({current_index}/{total_count}): {name}", 2000)
-        
-        # 尝试删除快捷方式
-        data_dir = os.path.join(self.main_window.data_root, card.data_dir)
+        # 启动删除操作
+        start_time = time.time()
         success = self.main_window.shortcut_manager.delete_shortcut(name, data_dir)
-        
-        log_time(f"删除操作启动结果: {'成功' if success else '失败'}")
+        elapsed = time.time() - start_time
+        log_time(f"删除操作启动耗时: {elapsed:.4f}秒")
         
         if success:
-            # 从内存中移除快捷方式 - 通过名称匹配而不是直接移除对象
-            self.main_window.shortcuts = [s for s in self.main_window.shortcuts if s["name"] != name]
+            # 从内存中移除快捷方式
             log_time(f"从内存中移除快捷方式: {name}")
-            
-            # 只在内存中更新UI，文件删除是在后台进行的
-            log_time("正在更新UI显示")
-            self.update_browser_grid()  # 这会重建所有卡片
-            QApplication.processEvents()
-            
-            # 计数器+1
+            self.main_window.shortcuts = [s for s in self.main_window.shortcuts if s["name"] != name]
             self.delete_count += 1
-        
-        # 准备处理下一个，使用较短的延迟
+            
+            # 直接更新UI，移除当前卡片的显示
+            card.setVisible(False)
+            card.deleteLater()
+            QApplication.processEvents()
+        else:
+            log_time(f"删除 {name} 失败")
+            
+        # 增加索引，准备处理下一个
         self.delete_index += 1
         
         # 在处理下一个前保存配置
@@ -425,4 +416,23 @@ class HomePage(QWidget):
             self.delete_timer.start(200)
         else:
             # 这是最后一个，使用较长的延时让最后一个删除有时间处理
-            self.delete_timer.start(500) 
+            self.delete_timer.start(500)
+    
+    def _sync_after_batch_delete(self):
+        """批量删除完成后同步内存与文件系统，确保数据一致性"""
+        try:
+            log_time("执行批量删除后的数据同步...")
+            
+            # 从文件系统重新检查哪些实例存在，哪些已被删除
+            if hasattr(self.main_window, '_sync_shortcuts_with_filesystem'):
+                self.main_window._sync_shortcuts_with_filesystem()
+            
+            # 强制保存当前内存中的实例列表到数据库
+            self.main_window.auto_save_config()
+            
+            # 重新加载并更新UI
+            self.update_browser_grid()
+            
+            log_time("批量删除后的数据同步完成")
+        except Exception as e:
+            log_time(f"批量删除后同步数据时出错: {str(e)}") 

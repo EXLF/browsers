@@ -176,7 +176,13 @@ class DatabaseManager:
             
             print(f"保存Chrome实例: 名称={name}, 数据目录={data_dir}")
             
+            # 确保连接可用
+            self._ensure_connection()
+            
             cursor = self.conn.cursor()
+            
+            # 开始事务
+            self.conn.execute("BEGIN TRANSACTION")
             
             # 检查是否已存在
             cursor.execute(
@@ -210,9 +216,20 @@ class DatabaseManager:
                 instance_id = cursor.lastrowid
                 print(f"插入新实例成功, ID={instance_id}")
             
+            # 提交事务
             self.conn.commit()
             return instance_id
+        except sqlite3.Error as e:
+            # 回滚事务
+            self.conn.rollback()
+            print(f"数据库操作错误: {str(e)}")
+            return None
         except Exception as e:
+            # 回滚事务
+            try:
+                self.conn.rollback()
+            except:
+                pass
             print(f"保存Chrome实例出错: {str(e)}")
             return None
     
@@ -220,6 +237,10 @@ class DatabaseManager:
         """获取所有Chrome实例"""
         try:
             print(f"正在从数据库获取所有Chrome实例...")
+            
+            # 确保连接可用
+            self._ensure_connection()
+            
             cursor = self.conn.cursor()
             cursor.execute(
                 """
@@ -237,6 +258,9 @@ class DatabaseManager:
             
             print(f"成功获取{len(instances)}个Chrome实例")
             return instances
+        except sqlite3.Error as e:
+            print(f"数据库操作错误: {str(e)}")
+            return []
         except Exception as e:
             print(f"获取Chrome实例出错: {str(e)}")
             return []
@@ -382,4 +406,21 @@ class DatabaseManager:
     def close(self):
         """关闭数据库连接"""
         if self.conn:
-            self.conn.close() 
+            self.conn.close()
+    
+    def _ensure_connection(self):
+        """确保数据库连接有效，如果连接丢失则重新连接"""
+        try:
+            # 执行一个简单查询测试连接是否有效
+            self.conn.execute("SELECT 1")
+        except (sqlite3.Error, AttributeError):
+            # 如果连接无效，重新连接
+            try:
+                if hasattr(self, 'conn') and self.conn:
+                    self.conn.close()
+            except:
+                pass
+            
+            self.conn = sqlite3.connect(self.db_path)
+            self.conn.execute("PRAGMA foreign_keys = ON")
+            print("数据库连接已重新建立") 

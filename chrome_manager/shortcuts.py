@@ -422,42 +422,56 @@ class ShortcutManager:
         Returns:
             bool: 是否创建成功
         """
-        try:
-            # 提取数据目录名称作为Profile名称
-            profile_name = os.path.basename(data_dir)
-            
-            # 创建更简洁的显示名称
-            display_name = name
-            
-            # 创建快捷方式路径
-            shortcut_path = os.path.join(self.shortcuts_dir, f"{display_name}.lnk")
-            
-            # 确保数据目录存在
-            os.makedirs(data_dir, exist_ok=True)
-            
-            # 确保快捷方式目录存在
-            os.makedirs(os.path.dirname(shortcut_path), exist_ok=True)
-            
-            # 创建快捷方式
-            shell = Dispatch('WScript.Shell')
-            shortcut = shell.CreateShortCut(shortcut_path)
-            shortcut.Targetpath = chrome_path
-            shortcut.Arguments = f'--user-data-dir="{data_dir}"'
-            shortcut.Description = f"Chrome - {display_name}"
-            shortcut.IconLocation = f"{chrome_path}, 0"
-            shortcut.WorkingDirectory = os.path.dirname(chrome_path)
-            shortcut.save()
-            
-            print(f"快捷方式已创建: {shortcut_path}")
-            return True
-        except Exception as e:
-            # 使用状态栏显示错误消息
-            if hasattr(self.main_window, 'statusBar'):
-                self.main_window.statusBar().showMessage(f"创建快捷方式失败：{str(e)}", 5000)
-            print(f"创建快捷方式错误: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            return False
+        success = False
+        retry_count = 0
+        max_retries = 3
+        
+        while not success and retry_count < max_retries:
+            try:
+                # 提取数据目录名称作为Profile名称
+                profile_name = os.path.basename(data_dir)
+                
+                # 创建更简洁的显示名称
+                display_name = name
+                
+                # 创建快捷方式路径
+                shortcut_path = os.path.join(self.shortcuts_dir, f"{display_name}.lnk")
+                
+                # 确保数据目录存在
+                os.makedirs(data_dir, exist_ok=True)
+                
+                # 确保快捷方式目录存在
+                os.makedirs(os.path.dirname(shortcut_path), exist_ok=True)
+                
+                # 创建快捷方式
+                shell = Dispatch('WScript.Shell')
+                shortcut = shell.CreateShortCut(shortcut_path)
+                shortcut.Targetpath = chrome_path
+                shortcut.Arguments = f'--user-data-dir="{data_dir}"'
+                shortcut.Description = f"Chrome - {display_name}"
+                shortcut.IconLocation = f"{chrome_path}, 0"
+                shortcut.WorkingDirectory = os.path.dirname(chrome_path)
+                shortcut.save()
+                
+                # 验证快捷方式创建成功
+                if os.path.exists(shortcut_path):
+                    print(f"快捷方式已创建: {shortcut_path}")
+                    success = True
+                else:
+                    print(f"快捷方式创建后未找到: {shortcut_path}")
+                    retry_count += 1
+                    time.sleep(0.5)  # 重试前等待一段时间
+            except Exception as e:
+                # 使用状态栏显示错误消息
+                if hasattr(self.main_window, 'statusBar'):
+                    self.main_window.statusBar().showMessage(f"创建快捷方式失败：{str(e)}", 5000)
+                print(f"创建快捷方式错误: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                retry_count += 1
+                time.sleep(0.5)  # 重试前等待一段时间
+                
+        return success
     
     def delete_shortcut(self, name, data_dir):
         """

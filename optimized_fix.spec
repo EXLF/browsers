@@ -34,6 +34,7 @@ a = Analysis(
         'html',  # 添加html模块
         'html.parser',  # 添加html解析器
         'requests',  # 添加requests库
+        'platform',  # 添加platform模块，用于操作系统检测
     ],
     hookspath=[],
     hooksconfig={},

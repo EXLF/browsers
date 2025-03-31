@@ -9,6 +9,51 @@ import psutil
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import QFontDatabase, QFont
 
+def check_os_compatibility():
+    """
+    检查系统兼容性，确保应用程序可以在当前操作系统上运行
+    
+    Returns:
+        bool: 系统是否兼容
+        str: 不兼容时的错误消息，兼容时为空字符串
+    """
+    # 检查操作系统类型
+    if sys.platform != 'win32':
+        return False, f"当前应用仅支持Windows系统，不支持当前系统({sys.platform})"
+    
+    # 检查Windows版本
+    try:
+        import platform
+        win_ver = platform.win32_ver()[0]
+        # 转换为数字进行比较，例如'10'或'11'
+        win_ver_num = float(win_ver) if win_ver.replace('.', '').isdigit() else 0
+        
+        if win_ver_num < 7:
+            return False, f"当前应用要求Windows 7及以上版本，检测到Windows {win_ver}"
+    except Exception as e:
+        # 如果无法获取Windows版本，则不阻止运行
+        print(f"检查Windows版本出错: {str(e)}")
+    
+    # 检查Python版本
+    if sys.version_info.major < 3 or (sys.version_info.major == 3 and sys.version_info.minor < 6):
+        return False, f"当前应用要求Python 3.6及以上版本，检测到Python {sys.version.split()[0]}"
+    
+    # 确认所有必要的依赖项可用
+    required_modules = ['PyQt6', 'psutil', 'requests']
+    missing_modules = []
+    
+    for module in required_modules:
+        try:
+            __import__(module)
+        except ImportError:
+            missing_modules.append(module)
+    
+    if missing_modules:
+        return False, f"缺少必要的依赖库: {', '.join(missing_modules)}"
+    
+    # 所有检查都通过
+    return True, ""
+
 def load_system_font():
     """
     加载系统默认字体，为UI提供更好的字体支持

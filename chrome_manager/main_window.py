@@ -430,6 +430,9 @@ class ChromeShortcutManager(QMainWindow):
             self.shortcuts = config.get('shortcuts', [])
             print(f"加载配置 - 快捷方式数量: {len(self.shortcuts)}")
             print(f"加载配置 - 快捷方式详情: {[s.get('name') for s in self.shortcuts]}")
+            
+            # 新增：检查文件系统中是否存在数据目录和快捷方式
+            self._sync_shortcuts_with_filesystem()
                 
             # 加载账号信息
             self.account_info = config.get('account_info', {})
@@ -443,6 +446,77 @@ class ChromeShortcutManager(QMainWindow):
             self.shortcuts = []
             self.account_info = {}
     
+    def _sync_shortcuts_with_filesystem(self):
+        """
+        同步内存中的快捷方式列表与文件系统中的实际文件
+        1. 检查数据库中的快捷方式在文件系统中是否存在
+        2. 扫描文件系统中可能存在但数据库中没有的快捷方式
+        """
+        try:
+            print("开始同步快捷方式与文件系统...")
+            valid_shortcuts = []
+            shortcut_names = set()
+            
+            # 1. 验证现有快捷方式
+            for shortcut in self.shortcuts:
+                name = shortcut.get('name')
+                data_dir = shortcut.get('data_dir')
+                shortcut_path = os.path.join(self.shortcuts_dir, f"{name}.lnk")
+                
+                # 检查数据目录或快捷方式文件是否存在
+                if os.path.exists(data_dir) or os.path.exists(shortcut_path):
+                    valid_shortcuts.append(shortcut)
+                    shortcut_names.add(name)
+                    print(f"  验证快捷方式: {name} - 有效")
+                else:
+                    print(f"  验证快捷方式: {name} - 无效(文件不存在)")
+            
+            # 2. 扫描文件系统中的数据目录
+            if os.path.exists(self.data_root):
+                for item in os.listdir(self.data_root):
+                    full_path = os.path.join(self.data_root, item)
+                    # 只检查目录且以Profile开头
+                    if os.path.isdir(full_path) and item.startswith("Profile"):
+                        try:
+                            # 尝试从目录名提取数字
+                            profile_num = int(item[7:])  # 去掉"Profile"
+                            # 构建快捷方式名称
+                            shortcut_name = f"Chrome实例{profile_num}"
+                            
+                            # 检查这个名称是否已经在列表中
+                            if shortcut_name not in shortcut_names:
+                                print(f"  发现未记录的数据目录: {item}, 对应实例名: {shortcut_name}")
+                                # 检查快捷方式是否存在
+                                shortcut_path = os.path.join(self.shortcuts_dir, f"{shortcut_name}.lnk")
+                                if os.path.exists(shortcut_path):
+                                    # 添加到列表中
+                                    new_shortcut = {
+                                        "name": shortcut_name,
+                                        "data_dir": full_path
+                                    }
+                                    valid_shortcuts.append(new_shortcut)
+                                    shortcut_names.add(shortcut_name)
+                                    print(f"  添加发现的快捷方式: {shortcut_name}")
+                                else:
+                                    print(f"  数据目录存在但无对应快捷方式: {item}")
+                        except ValueError:
+                            # 如果无法从目录名提取数字，则跳过
+                            pass
+            
+            # 如果发现有差异，更新内存中的列表并保存到数据库
+            if len(valid_shortcuts) != len(self.shortcuts):
+                print(f"快捷方式列表已更新: {len(self.shortcuts)} -> {len(valid_shortcuts)}")
+                self.shortcuts = valid_shortcuts
+                # 立即保存更新后的列表到数据库
+                self.auto_save_config()
+                print("已保存更新后的快捷方式列表")
+            else:
+                print("快捷方式列表无需更新")
+        except Exception as e:
+            print(f"同步快捷方式时出错: {str(e)}")
+            import traceback
+            traceback.print_exc()
+
     # 修改ConfigSaveThread类
     class ConfigSaveThread(QThread):
         """配置保存线程"""
