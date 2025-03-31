@@ -15,7 +15,7 @@ from ...constants import (
     TEXT_PRIMARY_COLOR, TEXT_SECONDARY_COLOR, TEXT_HINT_COLOR, FONT_FAMILY
 )
 from ..components import ModernButton
-from ..dialogs import AddShortcutDialog
+from ..dialogs import AddShortcutDialog, BatchAddShortcutDialog
 from ..cards import BrowserCard
 from chrome_manager.shortcuts import log_time
 
@@ -46,6 +46,10 @@ class HomePage(QWidget):
         add_btn = ModernButton("添加新实例", accent=True)
         add_btn.clicked.connect(self.add_shortcut)
         
+        # 批量添加按钮
+        batch_add_btn = ModernButton("批量添加")
+        batch_add_btn.clicked.connect(self.batch_add_shortcuts)
+        
         # 批量操作按钮
         self.batch_btn = ModernButton("批量删除")
         self.batch_btn.clicked.connect(self.toggle_batch_mode)
@@ -71,6 +75,7 @@ class HomePage(QWidget):
         top_bar.addWidget(self.select_all_btn)
         top_bar.addWidget(self.confirm_delete_btn)
         top_bar.addWidget(self.cancel_batch_btn)
+        top_bar.addWidget(batch_add_btn)
         top_bar.addWidget(add_btn)
         
         home_layout.addLayout(top_bar)
@@ -138,6 +143,9 @@ class HomePage(QWidget):
             # 有快捷方式时启用批量删除按钮
             self.batch_btn.setEnabled(True)
         
+        # 对实例列表按照后缀数字从小到大排序
+        sorted_shortcuts = sorted(self.main_window.shortcuts, key=self._extract_instance_number)
+        
         # 卡片参数
         card_width = 180  # 卡片宽度
         card_spacing = 30  # 调整卡片间距
@@ -152,7 +160,7 @@ class HomePage(QWidget):
             max_cols = 4
         
         # 添加卡片到网格
-        for i, shortcut in enumerate(self.main_window.shortcuts):
+        for i, shortcut in enumerate(sorted_shortcuts):
             row = i // max_cols
             col = i % max_cols
             card = BrowserCard(
@@ -173,34 +181,35 @@ class HomePage(QWidget):
         self.grid_layout.setHorizontalSpacing(card_spacing)  # 水平间距
         self.grid_layout.setVerticalSpacing(card_spacing)  # 垂直间距
     
+    def _extract_instance_number(self, shortcut):
+        """从实例名称中提取数字用于排序"""
+        name = shortcut["name"]
+        try:
+            # 提取"Chrome实例"后面的数字
+            if name.startswith("Chrome实例"):
+                return int(name[len("Chrome实例"):])
+            
+            # 如果不是以Chrome实例开头，尝试其他方式提取数字
+            # 从末尾开始寻找数字
+            digits = ""
+            for char in reversed(name):
+                if char.isdigit():
+                    digits = char + digits
+                elif digits:  # 如果已经找到了数字，且当前字符不是数字，则中断
+                    break
+            
+            if digits:
+                return int(digits)
+        except (ValueError, IndexError):
+            pass
+        
+        # 如果无法提取数字，返回一个大数作为默认值（放在最后）
+        return float('inf')
+    
     def add_shortcut(self):
         """添加新快捷方式"""
         # 查找可用的实例编号
-        used_numbers = set()
-        for shortcut in self.main_window.shortcuts:
-            # 从实例名称中提取编号
-            name = shortcut["name"]
-            if name.startswith("Chrome实例"):
-                try:
-                    num = int(name[len("Chrome实例"):])
-                    used_numbers.add(num)
-                except ValueError:
-                    pass
-            
-            # 从数据目录中提取编号
-            data_dir = shortcut["data_dir"]
-            dir_name = os.path.basename(data_dir)
-            if dir_name.startswith("Profile"):
-                try:
-                    num = int(dir_name[len("Profile"):])
-                    used_numbers.add(num)
-                except ValueError:
-                    pass
-                
-        # 找到可用的最小编号
-        next_number = 1
-        while next_number in used_numbers:
-            next_number += 1
+        next_number = self._find_next_available_number()
             
         dialog = AddShortcutDialog(self.main_window, next_number - 1)  # 将参数改为下一个可用编号-1，以适应对话框内部+1的逻辑
         
@@ -255,6 +264,137 @@ class HomePage(QWidget):
                     self.main_window.auto_save_config()
                 else:
                     self.main_window.statusBar().showMessage(f"Chrome实例 '{name}' 创建失败", 3000)  # 显示3秒
+    
+    def _find_next_available_number(self):
+        """查找下一个可用的实例编号"""
+        used_numbers = set()
+        for shortcut in self.main_window.shortcuts:
+            # 从实例名称中提取编号
+            name = shortcut["name"]
+            if name.startswith("Chrome实例"):
+                try:
+                    num = int(name[len("Chrome实例"):])
+                    used_numbers.add(num)
+                except ValueError:
+                    pass
+            
+            # 从数据目录中提取编号
+            data_dir = shortcut["data_dir"]
+            dir_name = os.path.basename(data_dir)
+            if dir_name.startswith("Profile"):
+                try:
+                    num = int(dir_name[len("Profile"):])
+                    used_numbers.add(num)
+                except ValueError:
+                    pass
+                
+        # 找到可用的最小编号
+        next_number = 1
+        while next_number in used_numbers:
+            next_number += 1
+            
+        return next_number
+    
+    def batch_add_shortcuts(self):
+        """批量添加快捷方式"""
+        next_number = self._find_next_available_number()
+        
+        dialog = BatchAddShortcutDialog(self.main_window, next_number)
+        
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            start_number, count, prefix = dialog.get_values()
+            
+            if start_number is None or count is None or not prefix:
+                self.main_window.statusBar().showMessage("输入错误，请检查数值设置", 5000)
+                return
+                
+            if count <= 0 or count > 50:
+                self.main_window.statusBar().showMessage("创建数量必须在1-50之间", 5000)
+                return
+            
+            # 先对页面做一次UI更新，告知用户操作已开始
+            self.main_window.statusBar().showMessage(f"开始创建 {count} 个实例，请稍候...", 3000)
+            self.main_window.setEnabled(False)  # 暂时禁用UI，避免用户点击其他按钮
+            QApplication.processEvents()  # 确保消息显示
+            
+            # 使用定时器处理批量创建，避免UI卡死
+            self.batch_create_index = 0
+            self.batch_create_count = count
+            self.batch_create_start_number = start_number
+            self.batch_create_prefix = prefix
+            self.batch_create_success_count = 0
+            self.batch_create_timer = QTimer()
+            self.batch_create_timer.timeout.connect(self._process_next_create)
+            self.batch_create_timer.start(100)  # 延迟100毫秒后开始处理
+    
+    def _process_next_create(self):
+        """处理下一个创建操作"""
+        if self.batch_create_index >= self.batch_create_count:
+            # 所有创建已完成
+            self.batch_create_timer.stop()
+            
+            # 终止操作后启用UI
+            self.main_window.setEnabled(True)
+            
+            # 通知用户已完成
+            self.main_window.statusBar().showMessage(f"成功创建 {self.batch_create_success_count} 个实例", 3000)
+            
+            # 强制刷新实例列表 - 直接从数据库重新加载实例数据
+            instances = self.main_window.config_manager.db_manager.get_all_chrome_instances()
+            self.main_window.shortcuts = instances
+            
+            # 更新UI
+            self.update_browser_grid()
+            
+            # 保存配置
+            self.main_window.auto_save_config()
+            
+            return
+        
+        # 计算当前实例编号
+        current_number = self.batch_create_start_number + self.batch_create_index
+        
+        # 创建实例名称和数据目录名
+        name = f"{self.batch_create_prefix}{current_number}"
+        dir_name = f"Profile{current_number}"
+        
+        # 跳过已存在的实例
+        if any(s["name"] == name for s in self.main_window.shortcuts) or \
+           any(os.path.basename(s["data_dir"]) == dir_name for s in self.main_window.shortcuts):
+            self.batch_create_index += 1
+            self.batch_create_timer.start(50)  # 快速跳到下一个
+            return
+        
+        # 确保数据目录是绝对路径
+        data_dir = os.path.join(self.main_window.data_root, dir_name)
+        
+        shortcut = {
+            "name": name,
+            "data_dir": data_dir
+        }
+        
+        # 添加到数据库
+        db_success = self.main_window.config_manager.db_manager.save_chrome_instance(shortcut)
+        
+        if db_success:
+            self.main_window.shortcuts.append(shortcut)
+            
+            # 创建快捷方式
+            success = self.main_window.shortcut_manager.create_shortcut(name, data_dir, self.main_window.chrome_path)
+            if success:
+                self.batch_create_success_count += 1
+        
+        # 增加索引，准备处理下一个
+        self.batch_create_index += 1
+        
+        # 更新状态栏
+        self.main_window.statusBar().showMessage(f"正在创建实例 {self.batch_create_index}/{self.batch_create_count}...", 1000)
+        
+        # 处理事件，确保UI响应
+        QApplication.processEvents()
+        
+        # 使用定时器继续下一个
+        self.batch_create_timer.start(200)
     
     def delete_shortcut(self, name, data_dir):
         """删除单个快捷方式"""

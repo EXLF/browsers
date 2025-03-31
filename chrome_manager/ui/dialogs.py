@@ -306,4 +306,157 @@ class SettingsDialog(ModernDialog):
             self.data_root_edit.setText(path)
     
     def get_values(self):
-        return self.chrome_path_edit.text().strip(), self.data_root_edit.text().strip() 
+        return self.chrome_path_edit.text().strip(), self.data_root_edit.text().strip()
+
+class BatchAddShortcutDialog(ModernDialog):
+    """批量添加Chrome快捷方式对话框"""
+    
+    def __init__(self, parent=None, next_shortcut_number=1):
+        super().__init__(parent, "批量添加Chrome快捷方式", 500, 400, frameless=True)
+        self.next_shortcut_number = next_shortcut_number
+        
+        # 主布局
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(16)
+        
+        # 标题和关闭按钮
+        title_bar = QHBoxLayout()
+        title_bar.setSpacing(0)
+        
+        title_label = QLabel("批量添加Chrome实例")
+        title_label.setStyleSheet(f"color: {TEXT_PRIMARY_COLOR}; font-weight: bold; font-size: 12pt;")
+        
+        close_btn = ModernButton("×")
+        close_btn.setFixedSize(30, 30)
+        close_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                border: none;
+                border-radius: 15px;
+                color: {TEXT_SECONDARY_COLOR};
+                font-size: 16pt;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: rgba(0, 0, 0, 0.05);
+                color: {TEXT_PRIMARY_COLOR};
+            }}
+            QPushButton:pressed {{
+                background-color: rgba(0, 0, 0, 0.1);
+            }}
+        """)
+        close_btn.clicked.connect(self.reject)
+        
+        title_bar.addWidget(title_label)
+        title_bar.addStretch()
+        title_bar.addWidget(close_btn)
+        
+        layout.addLayout(title_bar)
+        layout.addSpacing(8)
+        
+        # 表单
+        form_layout = QVBoxLayout()
+        form_layout.setSpacing(16)
+        
+        # 起始编号
+        start_layout = QVBoxLayout()
+        start_layout.setSpacing(8)
+        start_label = QLabel("起始编号")
+        start_label.setStyleSheet(f"color: {TEXT_SECONDARY_COLOR};")
+        self.start_edit = ModernLineEdit(str(next_shortcut_number))
+        start_layout.addWidget(start_label)
+        start_layout.addWidget(self.start_edit)
+        form_layout.addLayout(start_layout)
+        
+        # 实例数量
+        count_layout = QVBoxLayout()
+        count_layout.setSpacing(8)
+        count_label = QLabel("创建数量")
+        count_label.setStyleSheet(f"color: {TEXT_SECONDARY_COLOR};")
+        self.count_edit = ModernLineEdit("5")
+        count_layout.addWidget(count_label)
+        count_layout.addWidget(self.count_edit)
+        form_layout.addLayout(count_layout)
+        
+        # 命名前缀
+        prefix_layout = QVBoxLayout()
+        prefix_layout.setSpacing(8)
+        prefix_label = QLabel("命名前缀 (可选)")
+        prefix_label.setStyleSheet(f"color: {TEXT_SECONDARY_COLOR};")
+        self.prefix_edit = ModernLineEdit("Chrome实例")
+        prefix_layout.addWidget(prefix_label)
+        prefix_layout.addWidget(self.prefix_edit)
+        form_layout.addLayout(prefix_layout)
+        
+        layout.addLayout(form_layout)
+        layout.addSpacing(4)
+        
+        # 添加说明文本
+        help_text = QLabel("将批量创建多个Chrome实例，每个实例名称将以指定前缀加上从起始编号开始的数字命名。\n数据目录会自动设置为Profile加数字的形式。")
+        help_text.setStyleSheet(f"color: {TEXT_SECONDARY_COLOR}; font-size: 9pt;")
+        help_text.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        layout.addWidget(help_text)
+        
+        layout.addStretch(1)
+        
+        # 按钮
+        button_layout = QHBoxLayout()
+        button_layout.setSpacing(12)
+        
+        self.cancel_button = ModernButton("取消")
+        self.ok_button = ModernButton("确定", accent=True)
+        
+        # 优化按钮样式
+        self.cancel_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: #F5F5F5;
+                color: {TEXT_PRIMARY_COLOR};
+                border: 1px solid #E0E0E0;
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-weight: 500;
+            }}
+            QPushButton:hover {{
+                background-color: #EAEAEA;
+            }}
+            QPushButton:pressed {{
+                background-color: #DADADA;
+            }}
+        """)
+        
+        self.ok_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {PRIMARY_COLOR};
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-weight: 500;
+            }}
+            QPushButton:hover {{
+                background-color: #1C75E5;
+            }}
+            QPushButton:pressed {{
+                background-color: #1567D3;
+            }}
+        """)
+        
+        self.ok_button.clicked.connect(self.accept)
+        self.cancel_button.clicked.connect(self.reject)
+        
+        button_layout.addStretch()
+        button_layout.addWidget(self.cancel_button)
+        button_layout.addWidget(self.ok_button)
+        
+        layout.addLayout(button_layout)
+        
+    def get_values(self):
+        """获取对话框的值"""
+        try:
+            start_number = int(self.start_edit.text())
+            count = int(self.count_edit.text())
+            prefix = self.prefix_edit.text()
+            return start_number, count, prefix
+        except ValueError:
+            return None, None, None 

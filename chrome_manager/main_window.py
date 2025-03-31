@@ -284,8 +284,8 @@ class ChromeShortcutManager(QMainWindow):
         # 连接信号
         self.home_btn.clicked.connect(lambda: self.switch_page(0))
         self.account_btn.clicked.connect(lambda: self.switch_page(1))
-        self.script_btn.clicked.connect(lambda: self.switch_page(3))
-        self.settings_btn.clicked.connect(lambda: self.switch_page(2))
+        self.script_btn.clicked.connect(lambda: self.switch_page(2))
+        self.settings_btn.clicked.connect(lambda: self.switch_page(3))
 
     def create_menu_button(self, text, is_active=False):
         """创建菜单按钮"""
@@ -378,15 +378,15 @@ class ChromeShortcutManager(QMainWindow):
         # 更新菜单按钮状态
         self.home_btn.setChecked(index == 0)
         self.account_btn.setChecked(index == 1)
-        self.script_btn.setChecked(index == 3)
-        self.settings_btn.setChecked(index == 2)
+        self.script_btn.setChecked(index == 2)
+        self.settings_btn.setChecked(index == 3)
         
         # 如果切换到账号管理页面，更新账号卡片
         if index == 1:
             self.account_page.update_cards()
         
         # 如果切换到设置页面，更新输入框的值
-        if index == 2:
+        if index == 3:
             self.settings_page.update_ui()
             
         # 如果切换到首页，更新浏览器网格

@@ -141,8 +141,11 @@ class AccountPage(QWidget):
             # 有实例时隐藏占位符
             self.account_placeholder.setVisible(False)
             
+            # 对实例列表按照后缀数字从小到大排序
+            sorted_shortcuts = sorted(self.main_window.shortcuts, key=self._extract_instance_number)
+            
             # 为每个浏览器实例创建一个账号信息卡片
-            for shortcut in self.main_window.shortcuts:
+            for shortcut in sorted_shortcuts:
                 name = shortcut["name"]
                 data_dir = shortcut["data_dir"]
                 
@@ -279,6 +282,31 @@ class AccountPage(QWidget):
             self.account_placeholder.setVisible(True)
             # 确保占位符在布局中的位置正确
             self.account_content_layout.insertWidget(0, self.account_placeholder)
+    
+    def _extract_instance_number(self, shortcut):
+        """从实例名称中提取数字用于排序"""
+        name = shortcut["name"]
+        try:
+            # 提取"Chrome实例"后面的数字
+            if name.startswith("Chrome实例"):
+                return int(name[len("Chrome实例"):])
+            
+            # 如果不是以Chrome实例开头，尝试其他方式提取数字
+            # 从末尾开始寻找数字
+            digits = ""
+            for char in reversed(name):
+                if char.isdigit():
+                    digits = char + digits
+                elif digits:  # 如果已经找到了数字，且当前字符不是数字，则中断
+                    break
+            
+            if digits:
+                return int(digits)
+        except (ValueError, IndexError):
+            pass
+        
+        # 如果无法提取数字，返回一个大数作为默认值（放在最后）
+        return float('inf')
     
     def save_account_info(self):
         """保存账号信息"""
